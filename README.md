@@ -6,8 +6,8 @@ Transcript Generation Backend
 
 ## Prerequisites
 
-- Python 3.9.13 is necessary.
-
+- Python 3.9.13 is necessary, download it from here.
+https://www.python.org/downloads/release/python-3913/
 ---
 
 ## Installation Instructions
