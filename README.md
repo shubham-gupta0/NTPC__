@@ -22,5 +22,5 @@ py setup.py
 ```
 ### To Generate Transcript
 ```bash
-py main.py
+python main.py
 ```
