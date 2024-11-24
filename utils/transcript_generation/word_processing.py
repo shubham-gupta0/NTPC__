@@ -17,7 +17,7 @@ def set_line_spacing(paragraph, spacing_value):
         pPr.append(spacing)
     spacing.set(qn('w:line'), str(int(spacing_value * 240)))
 
-def save_text_to_word(text_file_path, output_folder):
+def save_text_to_word(id, text_file_path, output_folder):
     """Save extracted text to a Word document."""
     with open(text_file_path, 'r', encoding='utf-8') as f:
         content = f.read()
@@ -32,6 +32,6 @@ def save_text_to_word(text_file_path, output_folder):
         paragraph = doc.add_paragraph(line)
         set_line_spacing(paragraph, 0.7)
 
-    output_file = os.path.join(output_folder, "formatted_document.docx")
+    output_file = os.path.join(output_folder, f"formatted_document_{id}.docx")
     doc.save(output_file)
     return output_file

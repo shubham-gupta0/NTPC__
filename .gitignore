@@ -6,6 +6,7 @@ __pycache__/
 
 # Virtual environment
 myenv/
+output/
 
 # Logs and temporary files
 *.log

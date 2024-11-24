@@ -49,7 +49,7 @@ def save_revisions_to_csv(revisions, output_path, revision_type):
                 rev['text']
             ])
 
-def compare_documents(file1_path, file2_path, output_dir):
+def compare_documents(id, file1_path, file2_path, output_dir):
     """
     Compare two Word documents and save all outputs:
     - Comparison result as DOCX
@@ -64,10 +64,10 @@ def compare_documents(file1_path, file2_path, output_dir):
     os.makedirs(output_dir, exist_ok=True)
 
     # Define output file paths
-    output_docx = os.path.join(output_dir, f"comparison_result.docx")
-    output_pdf = os.path.join(output_dir, f"comparison_result.pdf")
-    insertions_csv = os.path.join(output_dir, f"insertions.csv")
-    deletions_csv = os.path.join(output_dir, f"deletions.csv")
+    output_docx = os.path.join(output_dir, f"comparison_result_{id}.docx")
+    output_pdf = os.path.join(output_dir, f"comparison_result_{id}.pdf")
+    insertions_csv = os.path.join(output_dir, f"insertions_{id}.csv")
+    deletions_csv = os.path.join(output_dir, f"deletions_{id}.csv")
 
     original_doc = revised_doc = compared_doc = None
 
