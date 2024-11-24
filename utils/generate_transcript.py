@@ -6,9 +6,8 @@ from .transcript_generation.ocr_processing import initialize_ocr, perform_ocr
 from .transcript_generation.word_processing import save_text_to_word
 from .transcript_generation.comparison import compare_documents
 
-def generate_transcript(id):
+def generate_transcript(id, pdf_path):
     # Construct the PDF path based on the provided request_id
-    pdf_path = os.path.join("temp", f"temp_uploaded_{id}.pdf")
     
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"The PDF file for ID {id} does not exist at {pdf_path}.")
@@ -32,5 +31,7 @@ def generate_transcript(id):
     print('Comparing Documents')
     
     # Compare documents
-    # compare_documents(id, STANDARD_DOC_PATH, formatted_docx_path, OUTPUT_FOLDER)
+    compare_documents(id, STANDARD_DOC_PATH, formatted_docx_path, OUTPUT_FOLDER)
     print('Transcript Generated')
+
+    return f"Transcript for ID: {id} Generated!"

@@ -30,7 +30,7 @@ async def create_transcript(id: str = Form(...), pdf: UploadFile = File(...)):
     # Run the transcript generation process in a separate thread
     def process_transcript():
         try:
-            generate_transcript(str(id))
+            generate_transcript(id, pdf_path)
         except Exception as e:
             # Log the error (could be replaced with proper logging)
             print(f"Error generating transcript for ID {id}: {e}")
