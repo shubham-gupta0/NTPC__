@@ -11,10 +11,9 @@ def setup_environment():
         venv_name = "myenv"
         venv_path = Path(os.getcwd()) / venv_name
 
-
         # Commands to be executed
         commands = [
-            f"python -3.9 -m venv {venv_path}",  # Create virtual environment
+            f"python -m venv {venv_path}",  # Create virtual environment
             
             # Activate venv and install dependencies (Windows vs Unix)
             f"{'call' if sys.platform == 'win32' else 'source'} "

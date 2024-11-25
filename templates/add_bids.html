@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Add Bids</title>
+    <!-- Include Bootstrap CSS or other styles as needed -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  </head>
+  <body>
+    <div class="container">
+      <h2>Add Bids</h2>
+      <form method="post" enctype="multipart/form-data">
+        <div class="form-group">
+          <label for="bid_name">Bid Name</label>
+          <input type="text" class="form-control" id="bid_name" name="bid_name" required>
+        </div>
+        <div class="form-group">
+          <label for="bid_pdf">Upload Bank Guarantee PDF</label>
+          <input type="file" class="form-control-file" id="bid_pdf" name="bid_pdf" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Add Another Bid</button>
+      </form>
+
+      <hr>
+
+      <h3>Current Bids</h3>
+      <div class="list-group">
+        {% for bid in bids %}
+        <div class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <strong>{{ bid.name }}</strong><br>
+            <!-- Modify the View PDF link to trigger the modal -->
+            <a href="#" class="view-pdf-link" data-toggle="modal" data-target="#pdfModal" data-pdf-url="{{ url_for('uploaded_file', filename=bid.file) }}">View PDF</a>
+            <!-- For debugging purposes -->
+<p>Filename: {{ bid.file }}</p>
+          </div>
+          <form action="{{ url_for('delete_bid', bid_index=loop.index0) }}" method="post" style="margin: 0;">
+            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+          </form>
+        </div>
+        {% else %}
+          <p>No bids added yet.</p>
+        {% endfor %}
+      </div>
+
+      <hr>
+
+      <!-- Show Transcripts Button -->
+      <div class="mt-4">
+        <a href="/bidder_details" class="btn btn-success btn-block">Submit Bids and View Transcripts</a>
+      </div>
+    </div>
+
+    <!-- PDF Preview Modal -->
+    <div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="pdfModalLabel">PDF Preview</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <iframe id="pdfIframe" src="" width="100%" height="600px"></iframe>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <!-- Custom JavaScript to Load PDF in Modal -->
+    <script>
+      $(document).ready(function(){
+        $('#pdfModal').on('show.bs.modal', function (event) {
+          var button = $(event.relatedTarget) // Button that triggered the modal
+          var pdfUrl = button.data('pdf-url') // Extract info from data-* attributes
+          var modal = $(this)
+          modal.find('#pdfIframe').attr('src', pdfUrl)
+        })
+
+        // Clear the iframe src when modal is hidden to stop the PDF from continuing to load
+        $('#pdfModal').on('hidden.bs.modal', function (e) {
+          $(this).find('#pdfIframe').attr('src', '')
+        })
+      })
+    </script>
+  </body>
+</html>
