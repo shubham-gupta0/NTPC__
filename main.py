@@ -1,3 +1,4 @@
+import csv
 import os
 import aiofiles
 from docx import Document
@@ -105,11 +106,12 @@ async def add_bids(
 ):  
     print("CALLING ADD BIDS")
     bid_pdf_path = UPLOAD_FOLDER / secure_filename(bid_pdf.filename)
+    input_filename = os.path.splitext(bid_pdf.filename)[0]
     # Generate transcript asynchronously
     def process_transcript():
         try:
             print("GENERATING TRANSCRIPT")
-            generate_transcript("admin", bid_pdf_path)
+            generate_transcript(input_filename, bid_pdf_path)
             print("TRANSCRIPT GENERATED")
         except Exception as e:
             # Log the error (could be replaced with proper logging)
@@ -136,7 +138,7 @@ async def delete_bid(bid_index: int, request: Request):
         if bid_pdf_path.exists():
             bid_pdf_path.unlink()
         request.session["bids"] = bids
-        return {"success": True, "message": f'Bid "{deleted_bid["name"]}" deleted successfully'}
+        return RedirectResponse(url="/add_bids", status_code=302)
     else:
         raise HTTPException(status_code=404, detail="Bid not found")
 
@@ -145,19 +147,24 @@ async def delete_bid(bid_index: int, request: Request):
 async def bidder_details_page(request: Request):
     bids = request.session.get("bids", [])
     for bid in bids:
-        transcript_path = OUTPUT_FOLDER / "formatted_document_admin.docx"
+        input_filename = os.path.splitext(bid["file"])[0]
+        print(input_filename)
+        transcript_path = OUTPUT_FOLDER / f"comparison_result_{input_filename}.pdf"  # Changed from .docx to .pdf
         bid["transcript"] = transcript_path.exists()
     return templates.TemplateResponse("bidder_details.html", {"request": request, "bids": bids, "route_name": "bidder_details"})
 
 
 @app.get("/output/{filename}")
 async def get_output_file(filename: str):
-    
-    file_path = OUTPUT_FOLDER / "formatted_document_admin.docx"
-    if file_path.exists():        
-        return FileResponse(file_path)
+    # Secure the filename and remove the extension
+    print(filename)
+    # input_filename = os.path.splitext(secure_filename(filename))[0]
+    file_path = OUTPUT_FOLDER / f"{filename}"  # Changed from .docx to .pdf
+    if file_path.exists():
+        return FileResponse(file_path, media_type='application/pdf')  # Set the correct MIME type for PDF
     else:
         raise HTTPException(status_code=404, detail="File not found")
+    
 @app.get("/uploads/{filename}")
 async def uploaded_file(filename: str):
     # Secure the filename
@@ -178,7 +185,10 @@ async def uploaded_file(filename: str):
         raise HTTPException(status_code=404, detail="File not found")
 @app.get("/show_transcript/{bid_name}")
 async def show_transcript(bid_name: str):
-    transcript_path = OUTPUT_FOLDER / "formatted_document_admin.docx"
+    # Secure the bid name and remove the extension
+    input_filename = os.path.splitext(secure_filename(bid_name))[0]
+    print(input_filename)
+    transcript_path = OUTPUT_FOLDER / f"comparison_result_{input_filename}.docx"
     if transcript_path.exists():
         document = Document(transcript_path)
         html_content = "".join(
@@ -188,7 +198,7 @@ async def show_transcript(bid_name: str):
         return JSONResponse({"success": True, "content": html_content})
     else:
         raise HTTPException(status_code=404, detail="Transcript not found")
-
+    
 @app.post("/generate-transcript/")
 async def create_transcript(id: str = Form(...), pdf: UploadFile = File(...)):
     """
@@ -218,6 +228,49 @@ async def create_transcript(id: str = Form(...), pdf: UploadFile = File(...)):
     # Return an immediate response
     return JSONResponse(content={"message": f"Transcript generation process has been started for ID {id}."})
 
+@app.get("/transcript/{bid_name}", response_class=HTMLResponse)
+async def view_transcript(request: Request, bid_name: str):
+    input_filename = os.path.splitext(secure_filename(bid_name))[0]
+    
+    # Paths to CSV files
+    insertions_csv_path = OUTPUT_FOLDER / f"insertions_{input_filename}.csv"
+    deletions_csv_path = OUTPUT_FOLDER / f"deletions_{input_filename}.csv"
+    
+    # Read Insertions CSV
+    insertions = []
+    if insertions_csv_path.exists():
+        with open(insertions_csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            insertions = list(reader)
+    
+    # Read Deletions CSV
+    deletions = []
+    if deletions_csv_path.exists():
+        with open(deletions_csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            deletions = list(reader)
+    
+    # Paths to PDFs
+    original_pdf_path = UPLOAD_FOLDER / f"{input_filename}.pdf"
+    generated_pdf_path = OUTPUT_FOLDER / f"comparison_result_{input_filename}.pdf"
+    
+    # Check if PDFs exist
+    original_pdf_exists = original_pdf_path.exists()
+    generated_pdf_exists = generated_pdf_path.exists()
+    print(original_pdf_exists, generated_pdf_exists)
+    return templates.TemplateResponse(
+        "transcript.html",
+        {
+            "request": request,
+            "bid_name": bid_name,
+            "insertions": insertions,
+            "deletions": deletions,
+            "original_pdf_url": f"/uploads/{original_pdf_path.name}" if original_pdf_exists else None,
+            "generated_pdf_url": f"/output/{generated_pdf_path.name}" if generated_pdf_exists else None
+        }
+    )
+    
+    
 # Run the FastAPI app with Uvicorn when executed directly
 if __name__ == "__main__":
     import uvicorn
