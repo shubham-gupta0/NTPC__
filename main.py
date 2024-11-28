@@ -27,6 +27,9 @@ UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
 # Templates and static files
 templates = Jinja2Templates(directory=BASE_DIR / 'templates')
+static=StaticFiles(directory=BASE_DIR / 'static')
+app.mount("/static", static)
+
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
