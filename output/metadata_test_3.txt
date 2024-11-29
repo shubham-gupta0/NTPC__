@@ -1,0 +1,17 @@
+| Entity Name | Value |
+|-------------|-------|
+| Bank Guarantee Number | 01 PG2332701 |
+| Issuance Date | 24-11-2023 |
+| Bid Document Number | NA |
+| Name of Bidder | HINDUSTHANS SUPPLIERS, HINDUSTI THAN SUPPLIERS, BOKARO, BYE PASS ROAD CHAS, BOKARD |
+| Address of Registered Office of Bidder | BOKARO, BOKARD, JHARKHAND |
+| Alternate Office Address of Bidder | NA |
+| Name of Package | Supply Of Goods And Services |
+| Amount of Bid Security in Rupees (in Words) | Two Lakh Rupees |
+| Amount of Bid Security/Guaranteed Amount in Rupees (in Figures) | 2,00,000.00 |
+| Validity Start Date | 22-11-2023 |
+| Validity End Date/Expiry Date | 31-09-2024 |
+| Valid for | 31 days |
+| Name of Bank | Canara Bank |
+| Address of Issuing Branch | Naya More, Bokaro Steel City, Jharkhand |
+| Address of Registered Head Office | Naya More, Bokaro Steel City, Jharkhand |
