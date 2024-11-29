@@ -15,6 +15,7 @@
             <th>Bidder Name</th>
             <th>Bid PDF</th>
             <th>Transcript</th>
+            <th>Metadata</th>
           </tr>
         </thead>
         <tbody>
@@ -27,13 +28,17 @@
                 <!-- Button to Open Modal -->
                 <a href="/transcript/{{ bid.file }}" type="button" class="btn btn-primary">View Transcript</a>
               {% else %}
-                <button class="btn btn-secondary" disabled>No Transcript</button>
+                <button class="btn btn-secondary" disabled>Loading Transcript</button>
               {% endif %}
             </td>
             <td>
               <!-- view comparison  -->
+               {% if bid.metadata %}
+                <a href="{{ request.url_for('metadata', filename=bid.file) }}" class="btn btn-primary">View Metadata</a>
+              {% else %}
+                <button class="btn btn-secondary" disabled>Loading Metadata</button>
+              {% endif %}
             </td>
-
           </tr>
           {% else %}
             <tr>

@@ -13,6 +13,7 @@ from config import *
 from utils.generate_transcript import generate_transcript
 import threading
 from pathlib import Path
+from custom_parser import parse_metadata_file
 app = FastAPI()
 
 # Middleware for sessions
@@ -154,6 +155,9 @@ async def bidder_details_page(request: Request):
         print(input_filename)
         transcript_path = OUTPUT_FOLDER / f"comparison_result_{input_filename}.pdf"  # Changed from .docx to .pdf
         bid["transcript"] = transcript_path.exists()
+        metadata_path = OUTPUT_FOLDER / f"metadata_{input_filename}.txt"
+        bid["metadata"] = metadata_path.exists()
+        
     return templates.TemplateResponse("bidder_details.html", {"request": request, "bids": bids, "route_name": "bidder_details"})
 
 
@@ -175,9 +179,9 @@ async def uploaded_file(filename: str):
     file_path = UPLOAD_FOLDER / filename
 
     # Debug statements
-    print(f"UPLOAD_FOLDER is: {UPLOAD_FOLDER}")
-    print(f"Attempting to serve file: {filename}")
-    print(f"Full file path: {file_path}")
+    # print(f"UPLOAD_FOLDER is: {UPLOAD_FOLDER}")
+    # print(f"Attempting to serve file: {filename}")
+    # print(f"Full file path: {file_path}")
     print(f"File exists: {file_path.exists()}")
 
     if file_path.exists():
@@ -231,6 +235,20 @@ async def create_transcript(id: str = Form(...), pdf: UploadFile = File(...)):
     # Return an immediate response
     return JSONResponse(content={"message": f"Transcript generation process has been started for ID {id}."})
 
+# View to display the metadata for a specific bid
+@app.get("/metadata/{filename}", name="metadata", response_class=HTMLResponse)
+async def metadata(request: Request, filename: str):
+    bid_name = filename  # Or fetch the actual bid name based on filename
+    #read the txt file from output folder named as metadata_{filename}.txt
+    # print(filename)
+    filename = os.path.splitext(secure_filename(filename))[0]
+    metadata_path = OUTPUT_FOLDER / f"metadata_{filename}.txt"
+    print(metadata_path)
+    metadata = parse_metadata_file(metadata_path)
+    # print (metadata)
+            
+    return templates.TemplateResponse("metadata.html", {"request": request, "metadata": metadata, "bid_name": bid_name})
+
 @app.get("/transcript/{bid_name}", response_class=HTMLResponse)
 async def view_transcript(request: Request, bid_name: str):
     input_filename = os.path.splitext(secure_filename(bid_name))[0]
@@ -260,7 +278,7 @@ async def view_transcript(request: Request, bid_name: str):
     # Check if PDFs exist
     original_pdf_exists = original_pdf_path.exists()
     generated_pdf_exists = generated_pdf_path.exists()
-    print(original_pdf_exists, generated_pdf_exists)
+    # print(original_pdf_exists, generated_pdf_exists)
     return templates.TemplateResponse(
         "transcript.html",
         {
