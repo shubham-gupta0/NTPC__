@@ -27,6 +27,7 @@ fastapi dev .\main.py
 ```
 ### 2. Docker 
 TODOS: GPU SUPPORT and resolve win32 or change base image ??
+ig we win32 is resolved now
 ```bash
 docker build -t pdf-transcript-api .
 docker run -it --rm -p 8000:8000 pdf-transcript-api
@@ -35,3 +36,7 @@ docker run -it --rm -p 8000:8000 pdf-transcript-api
 ```bash
 python main.py
 ```
+
+### Note
+I added a rough.py file to generate a html page for interactive version of transcript, 
+works kind of hyperlink thing

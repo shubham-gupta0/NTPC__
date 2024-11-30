@@ -291,7 +291,7 @@ async def view_transcript(request: Request, bid_name: str):
             "generated_pdf_url": f"/output/{generated_pdf_path.name}" if generated_pdf_exists else None
         }
     )
-    
+
     
 # Run the FastAPI app with Uvicorn when executed directly
 if __name__ == "__main__":
