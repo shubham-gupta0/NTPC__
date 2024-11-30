@@ -1,9 +1,8 @@
 import os
 from config import *
 from .transcript_generation.image_processing import preprocess_image
-from .transcript_generation.pdf_processing import convert_pdf_to_image
+from .transcript_generation.pdf_processing import convert_pdf_to_image, HtmlToPdf
 from .transcript_generation.ocr_processing import initialize_ocr, perform_ocr
-from .transcript_generation.word_processing import save_text_to_word
 from .transcript_generation.comparison import compare_documents
 from .transcript_generation.qwen import getMetadata
 
@@ -26,15 +25,15 @@ def generate_transcript(id, pdf_path):
 
     # Perform OCR
     extracted_text_path = perform_ocr(id, processed_image_path, OUTPUT_FOLDER, ocr_model)
-
-    # Save text to Word
-    formatted_docx_path = save_text_to_word(id, extracted_text_path, OUTPUT_FOLDER)
-    print('Comparing Documents')
     
     # Compare documents
-    compare_documents(id, STANDARD_DOC_PATH, formatted_docx_path, OUTPUT_FOLDER)
-    print('Transcript Generated')
-    
+    comparisons = compare_documents(id, STANDARD_DOC_PATH, extracted_text_path, output_dir=OUTPUT_FOLDER)
+    print('Transcript HTML Generated')
+
+    #save pdf for transcript
+    HtmlToPdf(id, comparisons['html_file'], output_dir=OUTPUT_FOLDER)
+    print('Transcript Pdf Generated')
+
     #Generate Metadata
     getMetadata(id, extracted_text_path, OUTPUT_FOLDER)
 

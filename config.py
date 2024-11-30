@@ -2,13 +2,14 @@ import os
 
 # Poppler binary path
 POPPLER_PATH = r"libs/poppler-24.08.0/Library/bin"
+wkhtmltopdf_PATH = r"libs/wkhtmltopdf/bin/wkhtmltopdf.exe"
 
 # Output folder configuration
 OUTPUT_FOLDER = "output"
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 # Paths for assets
-STANDARD_DOC_PATH = os.path.join("assets", "standard.docx")
+STANDARD_DOC_PATH = os.path.join("assets", "standard.txt")
 
 # OCR model configurations
 OCR_DET_ARCH = 'db_resnet50'

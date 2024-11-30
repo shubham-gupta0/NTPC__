@@ -1,146 +1,213 @@
-import os
+import difflib
 import csv
-from win32com.client import Dispatch
+import os
+from diff_match_patch import diff_match_patch
+from config import *
 
-def extract_revisions(doc):
-        """Extract insertions and deletions from a Word document."""
-        insertions = []
-        deletions = []
-        
-        # Process Revisions (insertions and deletions)
-        for revision in doc.Revisions:
-            try:
-                is_insertion = revision.Type == 1
-                revision_info = {
-                    'author': revision.Author,
-                    'date': revision.Date,
-                    'text': revision.Range.Text.strip(),
-                    'page_number': revision.Range.Information(3)  # 3 is the constant for page number
-                }
-                
-                if revision_info['text']:  # Only add if there's actual content
-                    if is_insertion:
-                        insertions.append(revision_info)
-                    else:
-                        deletions.append(revision_info)
-            except Exception as e:
-                print(f"Error processing revision: {e}")
-        
-        return insertions, deletions
-
-def save_revisions_to_csv(revisions, output_path, revision_type):
-    """Save the revisions (insertions or deletions) to a CSV file."""
-    # Define CSV headers
-    headers = ['Index', 'Page', 'Author', 'Date', 'Text']
+def generate_professional_html_diff(diffs, text1, text2, comparison_id):
+    """
+    Generate a professional and readable HTML diff visualization.
     
-    with open(output_path, 'w', encoding='utf-8', newline='') as f:
-        writer = csv.writer(f)
-        
-        # Write headers
-        writer.writerow(headers)
-        
-        # Write revision data
-        for idx, rev in enumerate(revisions, 1):
-            writer.writerow([
-                idx,
-                rev['page_number'],
-                rev['author'],
-                rev['date'],
-                rev['text']
-            ])
-
-def compare_documents(id, file1_path, file2_path, output_dir):
+    Args:
+        diffs (list): List of diffs from diff_match_patch
+        text1 (str): Original text
+        text2 (str): Modified text
+        comparison_id (str): Unique identifier for the comparison
+    
+    Returns:
+        str: HTML string with professional diff visualization
     """
-    Compare two Word documents and save all outputs:
-    - Comparison result as DOCX
-    - Comparison result as PDF
-    - Insertions as CSV
-    - Deletions as CSV
-    """
-    word = Dispatch("Word.Application")
-    word.Visible = False
+    html_template = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Transcript - {comparison_id}</title>
+        <style>
+            body {{
+                font-family: 'Arial', sans-serif;
+                line-height: 1.6;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px;
+                color: #333;
+                background-color: #f4f4f4;
+            }}
+            .container {{
+                background-color: white;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                padding: 30px;
+            }}
+            h1 {{
+                color: #2c3e50;
+                border-bottom: 2px solid #3498db;
+                padding-bottom: 10px;
+                margin-bottom: 20px;
+            }}
+            .diff-summary {{
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 20px;
+                background-color: #f9f9f9;
+                padding: 15px;
+                border-radius: 5px;
+            }}
+            .diff-text {{
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 14px;
+                line-height: 1.5;
+            }}
+            .diff-insert {{
+                background-color: #e6f3e6;
+                color: #155724;
+                text-decoration: underline;
+            }}
+            .diff-delete {{
+                background-color: #f8d7da;
+                color: #721c24;
+                text-decoration: line-through;
+            }}
+            .diff-equal {{
+                background-color: transparent;
+            }}
+            .stats {{
+                margin-top: 20px;
+                font-size: 14px;
+                color: #6c757d;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Transcript - {comparison_id}</h1>
+            
+            <div class="diff-summary">
+                <div>
+                    <strong>Original Text Length:</strong> {text1_length} characters<br>
+                    <strong>Modified Text Length:</strong> {text2_length} characters
+                </div>
+                <div>
+                    <strong>Insertions:</strong> {insertions}<br>
+                    <strong>Deletions:</strong> {deletions}
+                </div>
+            </div>
 
+            <div class="diff-text">
+                {diff_html}
+            </div>
+
+            <div class="stats">
+                <p><em>Generated by NTPC Ai Tool</em></p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    # Render diff with semantic color coding
+    diff_html_parts = []
+    insertions_count = 0
+    deletions_count = 0
+
+    for diff_type, diff_text in diffs:
+        if diff_type == 1:  # Insertion
+            diff_html_parts.append(f'<span class="diff-insert">{diff_text}</span>')
+            insertions_count += 1
+        elif diff_type == -1:  # Deletion
+            diff_html_parts.append(f'<span class="diff-delete">{diff_text}</span>')
+            deletions_count += 1
+        else:  # Equal
+            diff_html_parts.append(f'<span class="diff-equal">{diff_text}</span>')
+
+    # Format the final HTML
+    html_output = html_template.format(
+        comparison_id=comparison_id,
+        text1_length=len(text1),
+        text2_length=len(text2),
+        insertions=insertions_count,
+        deletions=deletions_count,
+        diff_html=''.join(diff_html_parts)
+    )
+
+    return html_output
+
+def compare_documents(comparison_id, text1_path, text2_path, output_dir=OUTPUT_FOLDER, semantic_cleanup=True):
+    """
+    Compare two texts using diff-match-patch with comprehensive output options.
+    
+    Args:
+        comparison_id (str): Unique identifier for the comparison
+        text1_path (str): Path to the first text file
+        text2_path (str): Path to the second text file
+        output_dir (str): Directory to save output files
+        semantic_cleanup (bool): Apply semantic cleanup
+    
+    Returns:
+        dict: Comparison results including diff and file paths
+    """
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 
-    # Define output file paths
-    output_docx = os.path.join(output_dir, f"comparison_result_{id}.docx")
-    output_pdf = os.path.join(output_dir, f"comparison_result_{id}.pdf")
-    insertions_csv = os.path.join(output_dir, f"insertions_{id}.csv")
-    deletions_csv = os.path.join(output_dir, f"deletions_{id}.csv")
+    # Read text files
+    with open(text1_path, 'r', encoding='utf-8') as f1:
+        text1 = f1.read()
+    with open(text2_path, 'r', encoding='utf-8') as f2:
+        text2 = f2.read()
 
-    original_doc = revised_doc = compared_doc = None
+    # Create diff-match-patch instance
+    dmp = diff_match_patch()
+    
+    # Remove timeout and edit cost constraints
+    dmp.Diff_Timeout = 0  # No timeout
+    dmp.Diff_EditCost = 4  # Minimal edit cost
 
-    try:
-        # Open documents
-        print("Opening documents...")
-        original_doc = word.Documents.Open(os.path.abspath(file1_path))
-        revised_doc = word.Documents.Open(os.path.abspath(file2_path))
-
-        # Perform comparison
-        print("Performing document comparison...")
-        compared_doc = word.CompareDocuments(
-            OriginalDocument=original_doc,
-            RevisedDocument=revised_doc,
-            Destination=2,  # wdCompareDestinationNew
-            CompareFormatting=True,
-            CompareCaseChanges=True,
-            CompareWhitespace=True,
-            CompareTables=True,
-            CompareHeaders=True,
-            CompareFootnotes=True,
-            CompareTextboxes=True,
-            CompareFields=True,
-            CompareComments=True,
-            RevisedAuthor="Bidder"
-        )
-
-        # Extract revisions before saving
-        print("Extracting revisions...")
-        insertions, deletions = extract_revisions(compared_doc)
-
-        # Save comparison result as DOCX
-        print("Saving DOCX comparison result...")
-        compared_doc.SaveAs(os.path.abspath(output_docx), FileFormat=16)  # 16 = DOCX
-
-        # Save comparison result as PDF
-        print("Saving PDF comparison result...")
-        compared_doc.SaveAs(os.path.abspath(output_pdf), FileFormat=17)  # 17 = PDF
-
-        # Save insertions and deletions to CSV files
-        print("Saving revision details to CSV files...")
-        save_revisions_to_csv(insertions, insertions_csv, "Insertions")
-        save_revisions_to_csv(deletions, deletions_csv, "Deletions")
-
-        # Prepare summary of changes
-        total_changes = len(insertions) + len(deletions)
-        
-        # Print summary
-        print("\nComparison completed successfully!")
-        print(f"\nSummary of changes:")
-        print(f"Total changes: {total_changes}")
-        print(f"- Insertions: {len(insertions)}")
-        print(f"- Deletions: {len(deletions)}")
-        print("\nOutput files:")
-        print(f"- DOCX: {output_docx}")
-        print(f"- PDF: {output_pdf}")
-        print(f"- Insertions: {insertions_csv}")
-        print(f"- Deletions: {deletions_csv}")
-
-    except Exception as e:
-        print(f"\nError during comparison: {str(e)}")
-        raise
-    finally:
-        print("\nCleaning up...")
-        # Close all documents
-        for doc in [original_doc, revised_doc, compared_doc]:
-            if doc:
-                try:
-                    doc.Close(SaveChanges=False)
-                except:
-                    pass
-        # Quit Word application
-        try:
-            word.Quit()
-        except:
-            pass
+    # Compute the diff
+    diffs = dmp.diff_main(text1, text2)
+    
+    # Apply cleanup methods if selected
+    if semantic_cleanup:
+        dmp.diff_cleanupSemantic(diffs)
+    
+    # Generate professional HTML output
+    html_output = generate_professional_html_diff(diffs, text1, text2, comparison_id)
+    
+    # Prepare file paths with comparison_id
+    html_file_path = os.path.join(output_dir, f'comparision_result_{comparison_id}.html')
+    insertions_csv_path = os.path.join(output_dir, f'insertions_{comparison_id}.csv')
+    deletions_csv_path = os.path.join(output_dir, f'deletions_{comparison_id}.csv')
+    
+    # Save HTML output
+    with open(html_file_path, 'w', encoding='utf-8') as html_file:
+        html_file.write(html_output)
+    
+    # Prepare and save CSV files for insertions and deletions
+    insertions = []
+    deletions = []
+    
+    for diff_type, diff_text in diffs:
+        if diff_type == 1:  # Insertion
+            insertions.append([diff_text])
+        elif diff_type == -1:  # Deletion
+            deletions.append([diff_text])
+    
+    # Save insertions CSV
+    with open(insertions_csv_path, 'w', newline='', encoding='utf-8') as csv_file:
+        csv_writer = csv.writer(csv_file)
+        csv_writer.writerow(['Inserted Text'])
+        csv_writer.writerows(insertions)
+    
+    # Save deletions CSV
+    with open(deletions_csv_path, 'w', newline='', encoding='utf-8') as csv_file:
+        csv_writer = csv.writer(csv_file)
+        csv_writer.writerow(['Deleted Text'])
+        csv_writer.writerows(deletions)
+    
+    return {
+        'diffs': diffs,
+        'html_file': html_file_path,
+        'insertions_csv': insertions_csv_path,
+        'deletions_csv': deletions_csv_path
+    }

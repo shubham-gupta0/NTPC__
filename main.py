@@ -1,7 +1,7 @@
 import csv
 import os
 import aiofiles
-from docx import Document
+# from docx import Document
 from fastapi import FastAPI, Form, File, UploadFile, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -190,21 +190,22 @@ async def uploaded_file(filename: str):
     else:
         print(f"File not found at: {file_path}")
         raise HTTPException(status_code=404, detail="File not found")
-@app.get("/show_transcript/{bid_name}")
-async def show_transcript(bid_name: str):
-    # Secure the bid name and remove the extension
-    input_filename = os.path.splitext(secure_filename(bid_name))[0]
-    print(input_filename)
-    transcript_path = OUTPUT_FOLDER / f"comparison_result_{input_filename}.docx"
-    if transcript_path.exists():
-        document = Document(transcript_path)
-        html_content = "".join(
-            f"<h{''.join(filter(str.isdigit, para.style.name)) or '1'}>{para.text}</h>" if para.style.name.startswith("Heading") else f"<p>{para.text}</p>"
-            for para in document.paragraphs
-        )
-        return JSONResponse({"success": True, "content": html_content})
-    else:
-        raise HTTPException(status_code=404, detail="Transcript not found")
+    
+# @app.get("/show_transcript/{bid_name}")
+# async def show_transcript(bid_name: str):
+#     # Secure the bid name and remove the extension
+#     input_filename = os.path.splitext(secure_filename(bid_name))[0]
+#     print(input_filename)
+#     transcript_path = OUTPUT_FOLDER / f"comparison_result_{input_filename}.docx"
+#     if transcript_path.exists():
+#         document = Document(transcript_path)
+#         html_content = "".join(
+#             f"<h{''.join(filter(str.isdigit, para.style.name)) or '1'}>{para.text}</h>" if para.style.name.startswith("Heading") else f"<p>{para.text}</p>"
+#             for para in document.paragraphs
+#         )
+#         return JSONResponse({"success": True, "content": html_content})
+#     else:
+#         raise HTTPException(status_code=404, detail="Transcript not found")
     
 @app.post("/generate-transcript/")
 async def create_transcript(id: str = Form(...), pdf: UploadFile = File(...)):
