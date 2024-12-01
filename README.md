@@ -3,8 +3,8 @@
 ### Note
 1. Now the Comparison will done with the uploaded Standard PDF, before a stadnard pdf
 was fixed default, now will be done with what user uploads
-2. Added the code to generate an hyperlink version of the ranscript.
-3. The HTML of Hyperlink will be saved at hyperlink_outputs
+2. Added the code to generate a hyperlink version of the transcript.
+3. The HTML of Hyperlink will be saved at hyperlink_outputs dir.
 4. Just added code to test the hyperink transcript html in /transcript/{bid_name} api
 ```
 return hyperlink_templates.TemplateResponse(
