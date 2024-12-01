@@ -38,7 +38,7 @@ def generate_transcript(id, pdf_path):
     print('Transcript Pdf Generated')
 
     #Generate Metadata
-    # getMetadata(id, extracted_text_path, OUTPUT_FOLDER)
+    getMetadata(id, extracted_text_path, OUTPUT_FOLDER)
 
     return f"Transcript for ID: {id} Generated!"
 
