@@ -25,6 +25,21 @@ python setup.py
 pip install "fastapi[standard]"
 fastapi dev .\main.py  
 ```
+### Note
+1. Now the Comparison will done with the uploaded Standard PDF, before a stadnard pdf
+was fixed default, now will be done with what user uploads
+2. Added the code to generate an hyperlink version of the ranscript.
+3. The HTML of Hyperlink will be saved at hyperlink_outputs
+4. Just added code to test the hyperink transcript html in /transcript/{bid_name} api
+```
+return hyperlink_templates.TemplateResponse(
+        f"hyperlink_{str(bid_name)[:-4]}.html",
+        {"request": request}
+    )
+```
+
+
+
 ### 2. Docker 
 TODOS: GPU SUPPORT and resolve win32 or change base image ??
 ig we win32 is resolved now
@@ -37,6 +52,4 @@ docker run -it --rm -p 8000:8000 pdf-transcript-api
 python main.py
 ```
 
-### Note
-I added a rough.py file to generate a html page for interactive version of transcript, 
-works kind of hyperlink thing
+

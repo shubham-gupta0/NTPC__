@@ -11,6 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from werkzeug.utils import secure_filename
 from config import *
 from utils.generate_transcript import generate_transcript
+from utils.generateStandardText import generate_standard
 import threading
 from pathlib import Path
 from custom_parser import parse_metadata_file
@@ -28,6 +29,7 @@ UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
 # Templates and static files
 templates = Jinja2Templates(directory=BASE_DIR / 'templates')
+hyperlink_templates = Jinja2Templates(directory=BASE_DIR / 'hyperlink_outputs')
 static=StaticFiles(directory=BASE_DIR / 'static')
 app.mount("/static", static)
 
@@ -94,6 +96,21 @@ async def upload_master_document(
     async with aiofiles.open(master_pdf_path, "wb") as f:
         await f.write(await master_pdf.read())
     request.session["master_pdf"] = master_pdf.filename
+
+    master_input_filename = os.path.splitext(master_pdf.filename)[0]
+
+    def process_standard():
+        try:
+            print("Building Standard Text")
+            generate_standard(master_input_filename, master_pdf_path)
+            print("Standard Text GENERATED")
+        except Exception as e:
+            # Log the error (could be replaced with proper logging)
+            print(f"Error generating Standard Form Text")
+
+    print("Extracting Standard Text")
+    threading.Thread(target=process_standard).start()
+
     return RedirectResponse(url="/add_bids", status_code=302)
 
 
@@ -262,15 +279,15 @@ async def view_transcript(request: Request, bid_name: str):
     insertions = []
     if insertions_csv_path.exists():
         with open(insertions_csv_path, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            insertions = list(reader)
+            for line in f:
+                insertions.append(line)
     
     # Read Deletions CSV
     deletions = []
     if deletions_csv_path.exists():
         with open(deletions_csv_path, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            deletions = list(reader)
+            for line in f:
+                deletions.append(line)
     
     # Paths to PDFs
     original_pdf_path = UPLOAD_FOLDER / f"{input_filename}.pdf"
@@ -280,6 +297,7 @@ async def view_transcript(request: Request, bid_name: str):
     original_pdf_exists = original_pdf_path.exists()
     generated_pdf_exists = generated_pdf_path.exists()
     # print(original_pdf_exists, generated_pdf_exists)
+
     return templates.TemplateResponse(
         "transcript.html",
         {
@@ -291,7 +309,11 @@ async def view_transcript(request: Request, bid_name: str):
             "generated_pdf_url": f"/output/{generated_pdf_path.name}" if generated_pdf_exists else None
         }
     )
-
+    
+    # return hyperlink_templates.TemplateResponse(
+    #     f"hyperlink_{str(bid_name)[:-4]}.html",
+    #     {"request": request}
+    # )
     
 # Run the FastAPI app with Uvicorn when executed directly
 if __name__ == "__main__":

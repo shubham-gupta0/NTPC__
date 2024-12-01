@@ -27,7 +27,7 @@ def generate_transcript(id, pdf_path):
     extracted_text_path = perform_ocr(id, processed_image_path, OUTPUT_FOLDER, ocr_model)
     
     # Compare documents
-    comparisons = compare_documents(id, STANDARD_DOC_PATH, extracted_text_path, output_dir=OUTPUT_FOLDER)
+    comparisons = compare_documents(id, Config.STANDARD_DOC_PATH, extracted_text_path, output_dir=OUTPUT_FOLDER)
     print('Transcript HTML Generated')
 
     #save pdf for transcript

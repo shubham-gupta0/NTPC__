@@ -3,136 +3,140 @@ import csv
 import os
 from diff_match_patch import diff_match_patch
 from config import *
+from .generateHyperlinkHTML import save_interactive_html_diff
 
 def generate_professional_html_diff(diffs, text1, text2, comparison_id):
-    """
-    Generate a professional and readable HTML diff visualization.
-    
-    Args:
-        diffs (list): List of diffs from diff_match_patch
-        text1 (str): Original text
-        text2 (str): Modified text
-        comparison_id (str): Unique identifier for the comparison
-    
-    Returns:
-        str: HTML string with professional diff visualization
-    """
-    html_template = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <title>Transcript - {comparison_id}</title>
-        <style>
-            body {{
-                font-family: 'Arial', sans-serif;
-                line-height: 1.6;
-                max-width: 1200px;
-                margin: 0 auto;
-                padding: 20px;
-                color: #333;
-                background-color: #f4f4f4;
-            }}
-            .container {{
-                background-color: white;
-                border-radius: 8px;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                padding: 30px;
-            }}
-            h1 {{
-                color: #2c3e50;
-                border-bottom: 2px solid #3498db;
-                padding-bottom: 10px;
-                margin-bottom: 20px;
-            }}
-            .diff-summary {{
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 20px;
-                background-color: #f9f9f9;
-                padding: 15px;
-                border-radius: 5px;
-            }}
-            .diff-text {{
-                white-space: pre-wrap;
-                word-wrap: break-word;
-                font-family: 'Consolas', 'Courier New', monospace;
-                font-size: 14px;
-                line-height: 1.5;
-            }}
-            .diff-insert {{
-                background-color: #e6f3e6;
-                color: #155724;
-                text-decoration: underline;
-            }}
-            .diff-delete {{
-                background-color: #f8d7da;
-                color: #721c24;
-                text-decoration: line-through;
-            }}
-            .diff-equal {{
-                background-color: transparent;
-            }}
-            .stats {{
-                margin-top: 20px;
-                font-size: 14px;
-                color: #6c757d;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>Transcript - {comparison_id}</h1>
-            
-            <div class="diff-summary">
-                <div>
-                    <strong>Original Text Length:</strong> {text1_length} characters<br>
-                    <strong>Modified Text Length:</strong> {text2_length} characters
+    try:
+        """
+        Generate a professional and readable HTML diff visualization.
+        
+        Args:
+            diffs (list): List of diffs from diff_match_patch
+            text1 (str): Original text
+            text2 (str): Modified text
+            comparison_id (str): Unique identifier for the comparison
+        
+        Returns:
+            str: HTML string with professional diff visualization
+        """
+        html_template = """
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>Transcript - {comparison_id}</title>
+            <style>
+                body {{
+                    font-family: 'Arial', sans-serif;
+                    line-height: 1.6;
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    color: #333;
+                    background-color: #f4f4f4;
+                }}
+                .container {{
+                    background-color: white;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    padding: 30px;
+                }}
+                h1 {{
+                    color: #2c3e50;
+                    border-bottom: 2px solid #3498db;
+                    padding-bottom: 10px;
+                    margin-bottom: 20px;
+                }}
+                .diff-summary {{
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 20px;
+                    background-color: #f9f9f9;
+                    padding: 15px;
+                    border-radius: 5px;
+                }}
+                .diff-text {{
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                    font-family: 'Consolas', 'Courier New', monospace;
+                    font-size: 14px;
+                    line-height: 1.5;
+                }}
+                .diff-insert {{
+                    background-color: #e6f3e6;
+                    color: #155724;
+                    text-decoration: underline;
+                }}
+                .diff-delete {{
+                    background-color: #f8d7da;
+                    color: #721c24;
+                    text-decoration: line-through;
+                }}
+                .diff-equal {{
+                    background-color: transparent;
+                }}
+                .stats {{
+                    margin-top: 20px;
+                    font-size: 14px;
+                    color: #6c757d;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Transcript - {comparison_id}</h1>
+                
+                <div class="diff-summary">
+                    <div>
+                        <strong>Original Text Length:</strong> {text1_length} characters<br>
+                        <strong>Modified Text Length:</strong> {text2_length} characters
+                    </div>
+                    <div>
+                        <strong>Insertions:</strong> {insertions}<br>
+                        <strong>Deletions:</strong> {deletions}
+                    </div>
                 </div>
-                <div>
-                    <strong>Insertions:</strong> {insertions}<br>
-                    <strong>Deletions:</strong> {deletions}
+
+                <div class="diff-text">
+                    {diff_html}
+                </div>
+
+                <div class="stats">
+                    <p><em>Generated by NTPC Ai Tool</em></p>
                 </div>
             </div>
+        </body>
+        </html>
+        """
 
-            <div class="diff-text">
-                {diff_html}
-            </div>
+        # Render diff with semantic color coding
+        diff_html_parts = []
+        insertions_count = 0
+        deletions_count = 0
 
-            <div class="stats">
-                <p><em>Generated by NTPC Ai Tool</em></p>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
+        for diff_type, diff_text in diffs:
+            if diff_type == 1:  # Insertion
+                diff_html_parts.append(f'<span class="diff-insert">{diff_text}</span>')
+                insertions_count += 1
+            elif diff_type == -1:  # Deletion
+                diff_html_parts.append(f'<span class="diff-delete">{diff_text}</span>')
+                deletions_count += 1
+            else:  # Equal
+                diff_html_parts.append(f'<span class="diff-equal">{diff_text}</span>')
 
-    # Render diff with semantic color coding
-    diff_html_parts = []
-    insertions_count = 0
-    deletions_count = 0
+        # Format the final HTML
+        html_output = html_template.format(
+            comparison_id=comparison_id,
+            text1_length=len(text1),
+            text2_length=len(text2),
+            insertions=insertions_count,
+            deletions=deletions_count,
+            diff_html=''.join(diff_html_parts)
+        )
 
-    for diff_type, diff_text in diffs:
-        if diff_type == 1:  # Insertion
-            diff_html_parts.append(f'<span class="diff-insert">{diff_text}</span>')
-            insertions_count += 1
-        elif diff_type == -1:  # Deletion
-            diff_html_parts.append(f'<span class="diff-delete">{diff_text}</span>')
-            deletions_count += 1
-        else:  # Equal
-            diff_html_parts.append(f'<span class="diff-equal">{diff_text}</span>')
-
-    # Format the final HTML
-    html_output = html_template.format(
-        comparison_id=comparison_id,
-        text1_length=len(text1),
-        text2_length=len(text2),
-        insertions=insertions_count,
-        deletions=deletions_count,
-        diff_html=''.join(diff_html_parts)
-    )
-
-    return html_output
+        return html_output
+    except Exception as e:
+        print(f'Error : {e}')
 
 def compare_documents(comparison_id, text1_path, text2_path, output_dir=OUTPUT_FOLDER, semantic_cleanup=True):
     """
@@ -148,66 +152,77 @@ def compare_documents(comparison_id, text1_path, text2_path, output_dir=OUTPUT_F
     Returns:
         dict: Comparison results including diff and file paths
     """
-    # Create output directory if it doesn't exist
-    os.makedirs(output_dir, exist_ok=True)
+    try:
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
 
-    # Read text files
-    with open(text1_path, 'r', encoding='utf-8') as f1:
-        text1 = f1.read()
-    with open(text2_path, 'r', encoding='utf-8') as f2:
-        text2 = f2.read()
+        # Read text files
+        with open(text1_path, 'r', encoding='utf-8') as f1:
+            text1 = f1.read()
+        with open(text2_path, 'r', encoding='utf-8') as f2:
+            text2 = f2.read()
 
-    # Create diff-match-patch instance
-    dmp = diff_match_patch()
-    
-    # Remove timeout and edit cost constraints
-    dmp.Diff_Timeout = 0  # No timeout
-    dmp.Diff_EditCost = 4  # Minimal edit cost
+        # Create diff-match-patch instance
+        dmp = diff_match_patch()
+        
+        # Remove timeout and edit cost constraints
+        dmp.Diff_Timeout = 0  # No timeout
+        dmp.Diff_EditCost = 4  # Minimal edit cost
 
-    # Compute the diff
-    diffs = dmp.diff_main(text1, text2)
-    
-    # Apply cleanup methods if selected
-    if semantic_cleanup:
-        dmp.diff_cleanupSemantic(diffs)
-    
-    # Generate professional HTML output
-    html_output = generate_professional_html_diff(diffs, text1, text2, comparison_id)
-    
-    # Prepare file paths with comparison_id
-    html_file_path = os.path.join(output_dir, f'comparision_result_{comparison_id}.html')
-    insertions_csv_path = os.path.join(output_dir, f'insertions_{comparison_id}.csv')
-    deletions_csv_path = os.path.join(output_dir, f'deletions_{comparison_id}.csv')
-    
-    # Save HTML output
-    with open(html_file_path, 'w', encoding='utf-8') as html_file:
-        html_file.write(html_output)
-    
-    # Prepare and save CSV files for insertions and deletions
-    insertions = []
-    deletions = []
-    
-    for diff_type, diff_text in diffs:
-        if diff_type == 1:  # Insertion
-            insertions.append([diff_text])
-        elif diff_type == -1:  # Deletion
-            deletions.append([diff_text])
-    
-    # Save insertions CSV
-    with open(insertions_csv_path, 'w', newline='', encoding='utf-8') as csv_file:
-        csv_writer = csv.writer(csv_file)
-        csv_writer.writerow(['Inserted Text'])
-        csv_writer.writerows(insertions)
-    
-    # Save deletions CSV
-    with open(deletions_csv_path, 'w', newline='', encoding='utf-8') as csv_file:
-        csv_writer = csv.writer(csv_file)
-        csv_writer.writerow(['Deleted Text'])
-        csv_writer.writerows(deletions)
-    
-    return {
-        'diffs': diffs,
-        'html_file': html_file_path,
-        'insertions_csv': insertions_csv_path,
-        'deletions_csv': deletions_csv_path
-    }
+        # Compute the diff
+        diffs = dmp.diff_main(text1, text2)
+        
+        # Apply cleanup methods if selected
+        if semantic_cleanup:
+            dmp.diff_cleanupSemantic(diffs)
+        
+        # Generate professional HTML output
+        html_output = generate_professional_html_diff(diffs, text1, text2, comparison_id)
+        
+        # Prepare file paths with comparison_id
+        html_file_path = os.path.join(output_dir, f'comparision_result_{comparison_id}.html')
+        insertions_csv_path = os.path.join(output_dir, f'insertions_{comparison_id}.csv')
+        deletions_csv_path = os.path.join(output_dir, f'deletions_{comparison_id}.csv')
+        
+        # Save HTML output
+        with open(html_file_path, 'w', encoding='utf-8') as html_file:
+            html_file.write(html_output)
+        
+        # Prepare and save CSV files for insertions and deletions
+        insertions = []
+        deletions = []
+        
+        for diff_type, diff_text in diffs:
+            if diff_type == 1:  # Insertion
+                insertions.append([diff_text])
+            elif diff_type == -1:  # Deletion
+                deletions.append([diff_text])
+        
+        # Save insertions CSV
+        with open(insertions_csv_path, 'w', newline='', encoding='utf-8') as csv_file:
+            csv_writer = csv.writer(csv_file)
+            csv_writer.writerow(['Inserted Text'])
+            csv_writer.writerows(insertions)
+        
+        # Save deletions CSV
+        with open(deletions_csv_path, 'w', newline='', encoding='utf-8') as csv_file:
+            csv_writer = csv.writer(csv_file)
+            csv_writer.writerow(['Deleted Text'])
+            csv_writer.writerows(deletions)
+        
+        html_file_path = save_interactive_html_diff(
+            diffs, 
+            text1,  # You'll need to pass the original text
+            text2,  # You'll need to pass the modified text
+            comparison_id
+        )
+        print(f"HyperLink Saved at: {html_file_path}")
+
+        return {
+            'diffs': diffs,
+            'html_file': html_file_path,
+            'insertions_csv': insertions_csv_path,
+            'deletions_csv': deletions_csv_path
+        }
+    except Exception as e:
+        print(f'Error : {e}')

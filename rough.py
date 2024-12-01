@@ -1,4 +1,3 @@
-import difflib
 import csv
 import os
 import json

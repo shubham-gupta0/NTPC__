@@ -61,7 +61,7 @@
                                 <td>{{ insertion.Index }}</td>
                                 <td>{{ insertion.Page }}</td>
                                 <td>Insertion</td>
-                                <td>{{ insertion.Text }}</td>
+                                <td>{{ insertion }}</td>
                                 <td>
                                     <button class="decision-btn" onclick="handleDecision('accept', '{{ insertion.Index }}')" aria-label="Accept Change">
                                         <i class="bi bi-check-circle-fill text-success fs-3" title="Accept"></i>
@@ -77,7 +77,7 @@
                                 <td>{{ deletion.Index }}</td>
                                 <td>{{ deletion.Page }}</td>
                                 <td>Deletion</td>
-                                <td>{{ deletion.Text }}</td>
+                                <td>{{ deletion }}</td>
                                 <td>
                                     <button class="decision-btn" onclick="handleDecision('accept', '{{ deletion.Index }}')" aria-label="Accept Change">
                                         <i class="bi bi-check-circle-fill text-success fs-3" title="Accept"></i>
