@@ -12,7 +12,10 @@ os.makedirs(HYPERLINK_OUTPUTS, exist_ok=True)
 
 # Paths for assets
 class Config:
+    # STANDARD_DOC_PATH = os.path.join('assets', 'standard_text_Standard_3.txt')
     STANDARD_DOC_PATH = ''
+
+
 
 # OCR model configurations
 OCR_DET_ARCH = 'db_resnet50'

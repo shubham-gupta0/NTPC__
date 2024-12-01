@@ -6,6 +6,9 @@ from .transcript_generation.ocr_processing import initialize_ocr, perform_ocr
 from .transcript_generation.comparison import compare_documents
 from .transcript_generation.qwen import getMetadata
 
+import pdfkit
+
+
 def generate_transcript(id, pdf_path):
     # Construct the PDF path based on the provided request_id
     
@@ -31,10 +34,13 @@ def generate_transcript(id, pdf_path):
     print('Transcript HTML Generated')
 
     #save pdf for transcript
-    HtmlToPdf(id, comparisons['html_file'], output_dir=OUTPUT_FOLDER)
+    HtmlToPdf(id, os.path.join(OUTPUT_FOLDER, f'comparison_result_{id}.html'), output_dir=OUTPUT_FOLDER)
     print('Transcript Pdf Generated')
 
     #Generate Metadata
     # getMetadata(id, extracted_text_path, OUTPUT_FOLDER)
 
     return f"Transcript for ID: {id} Generated!"
+
+
+

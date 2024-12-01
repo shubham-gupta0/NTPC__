@@ -180,7 +180,7 @@ def compare_documents(comparison_id, text1_path, text2_path, output_dir=OUTPUT_F
         html_output = generate_professional_html_diff(diffs, text1, text2, comparison_id)
         
         # Prepare file paths with comparison_id
-        html_file_path = os.path.join(output_dir, f'comparision_result_{comparison_id}.html')
+        html_file_path = os.path.join(output_dir, f'comparison_result_{comparison_id}.html')
         insertions_csv_path = os.path.join(output_dir, f'insertions_{comparison_id}.csv')
         deletions_csv_path = os.path.join(output_dir, f'deletions_{comparison_id}.csv')
         

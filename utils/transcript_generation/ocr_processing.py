@@ -58,7 +58,7 @@ def perform_ocr_for_standard(id, image_path, output_folder, ocr_model, pdf_path)
         os.makedirs(output_folder, exist_ok=True)
     
         # Load the image
-        single_img_doc = DocumentFile.from_pdf(pdf_path)
+        single_img_doc = DocumentFile.from_images(image_path)
         
         # Perform OCR
         result = ocr_model(single_img_doc)
