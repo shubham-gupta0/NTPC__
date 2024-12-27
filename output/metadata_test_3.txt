@@ -1,0 +1,21 @@
+| Entity Name                        | Value                                                                                   |
+|------------------------------------|-----------------------------------------------------------------------------------------|
+| Bank Guarantee Number              | 01 PG2332701                                                                            |
+| Issuance Date                      | 24-11-2023                                                                              |
+| Bid Document Number                | JE M/2023/6/4052435/EMD                                                                 |
+| Name of Bidder                     | ROHIT Dadheech M/S HINDUSTHANS SUPPLIERS                                                 |
+| Address of Registered Office of Bidder | Bokardo, BYE PASS ROAD CHAS, Bokar, Jharkhand, 827013                                      |
+| Alternate Office Address of Bidder | Naya More, Bokaro Steel City, Bengal, 701301                                             |
+| Name of Package                    | EMD                                                                                      |
+| Amount of Bid Security in Rupees (in Words) | Two Lakh Rupees                                                                         |
+| Amount of Bid Security/Guaranteed Amount in Rupees (in Figures) | 2,00,000.00                                                                           |
+| Validity Start Date                | 24-11-2023                                                                              |
+| Validity End Date/Expiry Date      | 45 days after the issuance date (24-11-2023 + 45 days)                                   |
+| Valid for (Number of Days)         | 45                                                                                       |
+| Name of Bank                       | Canara Bank                                                                             |
+| Address of Issuing Branch          | Western Avenue, Naya More, Bokaro Steel City, Jharkhand, 827001                           |
+| Address of Registered Head Office  | No. 112, IC Road, Quisit, Bengal, 701301                                                  |
+
+Note: The validity end date is calculated based on the start date plus 45 days. The exact date would be 29-12-2023.
+
+Please note that the table above is based on the provided text and the extracted information. The dates and addresses are formatted as per the standard representation.

@@ -4,7 +4,7 @@ from qwen_vl_utils import process_vision_info
 print("started...")
 # default: Load the model on the available device(s)
 model = AutoModelForCausalLM.from_pretrained(
-        "Qwen/Qwen2.5-1.5B-Instruct",
+        "microsoft/Phi-3.5-mini-instruct",
         torch_dtype="auto",
         device_map="auto"
     )

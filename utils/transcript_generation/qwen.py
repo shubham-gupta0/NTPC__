@@ -4,7 +4,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import os
 
 # Constants
-MODEL_NAME = "Qwen/Qwen2.5-1.5B-Instruct"
+MODEL_NAME = "microsoft/Phi-3.5-mini-instruct"
 
 def load_model_and_tokenizer(model_name: str):
     """Load the language model and tokenizer."""

@@ -12,8 +12,8 @@ os.makedirs(HYPERLINK_OUTPUTS, exist_ok=True)
 
 # Paths for assets
 class Config:
-    # STANDARD_DOC_PATH = os.path.join('assets', 'standard_text_Standard_3.txt')
-    STANDARD_DOC_PATH = ''
+    STANDARD_DOC_PATH = os.path.join('assets', 'standard_text.txt')
+    # STANDARD_DOC_PATH = ''
 
 
 

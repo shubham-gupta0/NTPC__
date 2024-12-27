@@ -79,39 +79,39 @@ async def create_task(
     async with aiofiles.open(pdf_file_path, "wb") as f:
         await f.write(await pdf_file.read())
     request.session['pdf_file'] = pdf_file.filename
-    return RedirectResponse(url="/upload_master_document", status_code=302)
-
-@app.get("/upload_master_document", response_class=HTMLResponse)
-async def upload_master_document_page(request: Request):
-    return templates.TemplateResponse("upload_master_document.html", {"request": request})
-
-
-@app.post("/upload_master_document")
-async def upload_master_document(
-    request: Request ,
-    master_pdf: UploadFile = File(...)
-):
-    master_pdf_path = UPLOAD_FOLDER / secure_filename(master_pdf.filename)
-    # Save the uploaded file
-    async with aiofiles.open(master_pdf_path, "wb") as f:
-        await f.write(await master_pdf.read())
-    request.session["master_pdf"] = master_pdf.filename
-
-    master_input_filename = os.path.splitext(master_pdf.filename)[0]
-
-    def process_standard():
-        try:
-            print("Building Standard Text")
-            generate_standard(master_input_filename, master_pdf_path)
-            print("Standard Text GENERATED")
-        except Exception as e:
-            # Log the error (could be replaced with proper logging)
-            print(f"Error generating Standard Form Text")
-
-    print("Extracting Standard Text")
-    threading.Thread(target=process_standard).start()
-
     return RedirectResponse(url="/add_bids", status_code=302)
+
+# @app.get("/upload_master_document", response_class=HTMLResponse)
+# async def upload_master_document_page(request: Request):
+#     return templates.TemplateResponse("upload_master_document.html", {"request": request})
+
+
+# @app.post("/upload_master_document")
+# async def upload_master_document(
+#     request: Request ,
+#     master_pdf: UploadFile = File(...)
+# ):
+#     master_pdf_path = UPLOAD_FOLDER / secure_filename(master_pdf.filename)
+#     # Save the uploaded file
+#     async with aiofiles.open(master_pdf_path, "wb") as f:
+#         await f.write(await master_pdf.read())
+#     request.session["master_pdf"] = master_pdf.filename
+
+#     master_input_filename = os.path.splitext(master_pdf.filename)[0]
+
+#     def process_standard():
+#         try:
+#             print("Building Standard Text")
+#             # generate_standard(master_input_filename, master_pdf_path)
+#             print("Standard Text GENERATED")
+#         except Exception as e:
+#             # Log the error (could be replaced with proper logging)
+#             print(f"Error generating Standard Form Text")
+
+#     print("Extracting Standard Text")
+#     threading.Thread(target=process_standard).start()
+
+#     return RedirectResponse(url="/add_bids", status_code=302)
 
 
 @app.get("/add_bids", response_class=HTMLResponse)

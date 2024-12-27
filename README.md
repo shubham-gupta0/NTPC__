@@ -1,3 +1,5 @@
+# Upload standard_text.txt in assets directory.
+
 # NTPC Backend
 
 ### Note
