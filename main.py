@@ -36,7 +36,7 @@ app.mount("/static", static)
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return RedirectResponse(url="/login", status_code=302)
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):    
@@ -56,6 +56,9 @@ async def dashboard(request: Request):
         return RedirectResponse(url="/login", status_code=302)
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
+@app.get("/compare1",response_class=HTMLResponse)
+async def doc1(request: Request):
+    return templates.TemplateResponse("doc1_dashboard.html", {"request": request})
 
 @app.get("/task1", response_class=HTMLResponse)
 async def create_task_page(request: Request):
