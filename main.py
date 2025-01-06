@@ -33,7 +33,7 @@ from pathlib import Path
 from custom_parser import parse_metadata_file
 
 # CHANGE THE DATABASE URL
-DATABASE_URL = "sqlite+aiosqlite:///C:/project/ntpc_backend/database/app.db"
+DATABASE_URL = "sqlite+aiosqlite:///database/app.db"
 engine = create_async_engine(DATABASE_URL, echo=True)
 Base = declarative_base()
 
