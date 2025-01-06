@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS Users (
 );
 
 -- INSERt
-INSERT INTO Users (username, password_hash, email) VALUES ('admin', 'admin','admin')
+INSERT INTO Users (username, password_hash, email,role) VALUES ('admins', 'admin','admins',1)
 
 -- Tenders table
 CREATE TABLE Tenders (
