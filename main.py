@@ -1,4 +1,5 @@
 import csv
+from datetime import datetime
 import os
 import aiofiles
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -186,19 +187,13 @@ async def login(
     )
     user = check_user.fetchone()
     if not user:
+        raise HTTPException(status_code=400, detail="No user found with that username")
+    print(user)
+    print(user.password_hash)
+    # Check if the password is correct with the hashed password
+    if not pwd_context.verify(password, user.password_hash):
         raise HTTPException(status_code=400, detail="Invalid credentials")
 
-    result = await db.execute(
-        text(
-            "SELECT * FROM users WHERE username = :username AND password_hash = :password"
-        ),
-        {"username": username, "password": password},
-    )
-    print(result)
-    user = result.fetchone()
-    if not user:
-        raise HTTPException(status_code=400, detail="Invalid credentials")
-    print(user)
     # check if user is admin
     if user.role == 1:
         request.session["admin"] = True
@@ -411,7 +406,6 @@ async def create_task_tender(
     tender_title: str = Form(...),
     validity_date: str = Form(...),
     pdf_file: UploadFile = File(...),
-    user_id: int = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
     # BANK LIST
@@ -420,7 +414,8 @@ async def create_task_tender(
 
     # Fetch the user's storage information
     user = await db.execute(
-        "SELECT * FROM users WHERE id = :user_id", {"user_id": user_id}
+        text("SELECT * FROM users WHERE id = :user_id"),
+        {"user_id": request.session["userid"]},
     )
     user = user.fetchone()
 
@@ -434,20 +429,28 @@ async def create_task_tender(
         raise HTTPException(
             status_code=400, detail="Not enough storage space available"
         )
+    # 4. Parse validity_date to datetime object
+    try:
+        validity_date = datetime.strptime(validity_date, '%Y-%m-%d')
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
 
     # Save the file
     pdf_file_path = UPLOAD_FOLDER / secure_filename(pdf_file.filename)
     async with aiofiles.open(pdf_file_path, "wb") as f:
         await f.write(await pdf_file.read())
-
+    #set validity
     # Add the bid to the database
     new_bid = Tender(name=tender_title, valid_until=validity_date, user_id=user.id)
+    print(new_bid)
     db.add(new_bid)
 
     # Update the user's used storage
-    new_used_storage = user.used_storage + pdf_file_size
+    new_used_storage = user.total_storage_used + pdf_file_size
     await db.execute(
-        "UPDATE users SET total_storage_used = :new_used_storage WHERE id = :user_id",
+        text(
+            "UPDATE users SET total_storage_used = :new_used_storage WHERE id = :user_id"
+        ),
         {"new_used_storage": new_used_storage, "user_id": user.id},
     )
 
@@ -461,7 +464,7 @@ async def create_task_tender(
 async def view_tender(request: Request, db: AsyncSession = Depends(get_db)):
     # for userid get all tenders
     result = await db.execute(
-        "SELECT * FROM tenders WHERE user_id = :user_id ORDER BY id DESC",
+        text("SELECT * FROM tenders WHERE user_id = :user_id ORDER BY id DESC"),
         {"user_id": request.session["userid"]},
     )
     tenders = result.fetchall()
@@ -545,7 +548,7 @@ async def add_bids(
     # Check file size (in MB)
     pdf_file_size = len(await bid_pdf_path.read()) / (1024 * 1024)
     user = await db.execute(
-        "SELECT * FROM users WHERE id = :user_id",
+        text("SELECT * FROM users WHERE id = :user_id"),
         {"user_id": request.session["userid"]},
     )
     user = user.fetchone()
@@ -571,7 +574,9 @@ async def add_bids(
     # Update the user's used storage
     new_used_storage = user.total_storage_used + pdf_file_size
     await db.execute(
-        "UPDATE users SET total_storage_used = :new_used_storage WHERE id = :user_id",
+        text(
+            "UPDATE users SET total_storage_used = :new_used_storage WHERE id = :user_id"
+        ),
         {"new_used_storage": new_used_storage, "user_id": user.id},
     )
 
