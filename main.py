@@ -31,11 +31,13 @@ from utils.generateStandardText import generate_standard
 import threading
 from pathlib import Path
 from custom_parser import parse_metadata_file
+from passlib.context import CryptContext
 
 # CHANGE THE DATABASE URL
 DATABASE_URL = "sqlite+aiosqlite:///database/app.db"
 engine = create_async_engine(DATABASE_URL, echo=True)
 Base = declarative_base()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class User(Base):
@@ -215,7 +217,8 @@ async def login(
 
 async def admin_only_middleware(request: Request, call_next):
     # Check if the user is an admin
-    is_admin = request.cookies.get("admin") == "true"
+    print(request.session.get("admin"))
+    is_admin = request.session.get("admin") == 1  # 1 = admin, 0 = user
 
     # Protect admin routes
     if not is_admin:
@@ -224,36 +227,40 @@ async def admin_only_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-# Add user page
-@app.get(
-    "/add_user",
-    response_class=HTMLResponse,
-    dependencies=[Depends(admin_only_middleware)],
-)
-async def add_user_page(request: Request):
-    return templates.TemplateResponse("add_user.html", {"request": request})
-
-
 # Add user
-@app.post("/add_user", dependencies=[Depends(admin_only_middleware)])
+@app.post("/add_user")
 async def add_user(
+    request: Request,
     username: str = Form(...),
     password: str = Form(...),
     email: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
+    is_admin = request.session.get("admin") == 1  # 1 = admin, 0 = user
+
+    # Protect admin routes
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Only admins can access this route")
+
     # Check for duplicate users
+    print(username, password, email)
+
     existing_user = await db.execute(
-        "SELECT * FROM users WHERE username = :username OR email = :email",
+        text("SELECT * FROM users WHERE username = :username OR email = :email"),
         {"username": username, "email": email},
     )
+    print(existing_user)
     if existing_user.fetchone():
         raise HTTPException(status_code=400, detail="User already exists")
-
+    # Hash the password
+    hashed_password = pwd_context.hash(password)
+    print(hashed_password)
     # Add the new user
     await db.execute(
-        "INSERT INTO users (username, password, email) VALUES (:username, :password, :email)",
-        {"username": username, "password": password, "email": email},
+        text(
+            "INSERT INTO users (username, password_hash, email) VALUES (:username, :password_hash, :email)"
+        ),
+        {"username": username, "password_hash": hashed_password, "email": email},
     )
     await db.commit()
 
@@ -264,17 +271,78 @@ async def add_user(
 @app.get(
     "/all_users",
     response_class=HTMLResponse,
-    dependencies=[Depends(admin_only_middleware)],
 )
 async def all_users(request: Request, db: AsyncSession = Depends(get_db)):
-    # Only retrieve users with role='user', ordered by descending ID
+    is_admin = request.session.get("admin") == 1  # 1 = admin, 0 = user
+
+    # Protect admin routes
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Only admins can access this route")
+
+    # Only retrieve users with role='0', ordered by descending ID
     result = await db.execute(
-        "SELECT * FROM users WHERE role = 'user' ORDER BY id DESC"
+        text("SELECT * FROM users WHERE role = '0' ORDER BY id DESC")
     )
     users = result.fetchall()
+    print(users)
     return templates.TemplateResponse(
         "all_users.html", {"request": request, "users": users}
     )
+
+
+@app.post("/update_user", response_class=JSONResponse)
+async def update_user(
+    request: Request,
+    user_id: int = Form(...),
+    username: str = Form(...),
+    email: str = Form(...),
+    role: str = Form(...),  # 'admin' or 'user'
+    password: str = Form(None),  # Optional
+    db: AsyncSession = Depends(get_db),
+):
+    is_admin = request.session.get("admin") == 1
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Only admins can access this route")
+    # Validate role
+    if role not in ["admin", "user"]:
+        raise HTTPException(status_code=400, detail="Invalid role selected.")
+
+    # Check if user exists
+    user = await db.execute(
+        text("SELECT * FROM users WHERE id = :user_id"),
+        {"user_id": user_id},
+    )
+    user = user.fetchone()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    # Check for duplicate username or email
+    existing_user = await db.execute(
+        text(
+            "SELECT * FROM users WHERE (username = :username OR email = :email) AND id != :user_id"
+        ),
+        {"username": username, "email": email, "user_id": user_id},
+    )
+    if existing_user.fetchone():
+        raise HTTPException(status_code=400, detail="Username or email already exists.")
+
+    # Prepare the update statement
+    update_fields = {"username": username, "email": email, "role": role}
+
+    if password:
+        hashed_password = pwd_context.hash(password)
+        update_fields["password_hash"] = hashed_password
+
+    # Dynamically build the SET part of the SQL statement
+    set_clause = ", ".join([f"{key} = :{key}" for key in update_fields.keys()])
+
+    await db.execute(
+        text(f"UPDATE users SET {set_clause} WHERE id = :user_id"),
+        {**update_fields, "user_id": user_id},
+    )
+    await db.commit()
+
+    return JSONResponse(content={"message": "User updated successfully."})
 
 
 # CLear storage for a user
