@@ -16,7 +16,7 @@ INSERT INTO Users (username, password_hash, email,role) VALUES ('admins', 'admin
 
 -- Tenders table
 CREATE TABLE Tenders (
-    id SERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INT NOT NULL,
     name TEXT NOT NULL,
     valid_until TIMESTAMP NOT NULL,
@@ -30,7 +30,7 @@ INSERT INTO Tenders (user_id, name, valid_until) VALUES (1, 'Tender 1', '2021-12
 
 -- PDF files table
 CREATE TABLE PdfFiles (
-    id SERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     tender_id INT NOT NULL,
     user_id INT NOT NULL,
     file_name VARCHAR(255) NOT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE PdfFiles (
 
 -- Transcript files table
 CREATE TABLE Transcripts (
-    id SERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     pdf_id INT NOT NULL,
     file_path VARCHAR(255) NOT NULL, -- Path to the fixed transcript file
     errors JSONB, -- Errors as JSON (e.g., [{"type": "deletion", "content": "text"}])
@@ -56,7 +56,7 @@ CREATE TABLE Transcripts (
 
 -- Meta files table
 CREATE TABLE MetaFiles (
-    id SERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     pdf_id INT NOT NULL,
     file_path VARCHAR(255) NOT NULL, -- Path to the fixed metadata file
     status INTEGER DEFAULT 0, -- 0: Pending, 1: Fixed, 2: Rejected

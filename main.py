@@ -414,64 +414,42 @@ async def create_task_tender(
     pdf_file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
-    # Read file content once
-    pdf_file_content = await pdf_file.read()
-    
+    # BANK LIST
     # Check file size (in MB)
-    pdf_file_size = len(pdf_file_content) / (1024 * 1024)
-
-    # Validate file type
-    if pdf_file.content_type != "application/pdf":
-        raise HTTPException(status_code=400, detail="Invalid file type. Only PDF files are allowed.")
+    pdf_file_size = len(await pdf_file.read()) / (1024 * 1024)
 
     # Fetch the user's storage information
-    user_result = await db.execute(
+    user = await db.execute(
         text("SELECT * FROM users WHERE id = :user_id"),
-        {"user_id": request.session.get("userid")},
+        {"user_id": request.session["userid"]},
     )
-    user = user_result.fetchone()
+    user = user.fetchone()
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Calculate available space (assuming total_storage_used is in MB)
-    total_storage_limit = 1024  # 1 GB in MB
-    available_space = total_storage_limit - user.total_storage_used
-
+    # fix it available_space = 1GB - user.total_storage_used
+    available_space = 1024 - user.total_storage_used
     # Check if the user has enough space
     if pdf_file_size > available_space:
         raise HTTPException(
             status_code=400, detail="Not enough storage space available"
         )
-
-    # Parse validity_date to datetime object
+    # 4. Parse validity_date to datetime object
     try:
         validity_date = datetime.strptime(validity_date, '%Y-%m-%d')
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
 
-    # Calculate the next id for the user
-    max_id_result = await db.execute(
-        text("SELECT MAX(id) FROM tenders WHERE user_id = :user_id"),
-        {"user_id": user.id},
-    )
-    max_id = max_id_result.scalar()
-    tender_id = 0 if max_id is None else max_id + 1
-
     # Save the file
-    filename = secure_filename(pdf_file.filename)
-    pdf_file_path = UPLOAD_FOLDER / filename
+    pdf_file_path = UPLOAD_FOLDER / secure_filename(pdf_file.filename)
     async with aiofiles.open(pdf_file_path, "wb") as f:
-        await f.write(pdf_file_content)
-
-    # Add the tender to the database with user-specific id
-    new_tender = Tender(
-        id=tender_id,
-        name=tender_title,
-        valid_until=validity_date,
-        user_id=user.id
-    )
-    db.add(new_tender)
+        await f.write(await pdf_file.read())
+    #set validity
+    # Add the bid to the database
+    new_bid = Tender(name=tender_title, valid_until=validity_date, user_id=user.id)
+    print(new_bid)
+    db.add(new_bid)
 
     # Update the user's used storage
     new_used_storage = user.total_storage_used + pdf_file_size
@@ -482,12 +460,7 @@ async def create_task_tender(
         {"new_used_storage": new_used_storage, "user_id": user.id},
     )
 
-    try:
-        await db.commit()
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-
+    await db.commit()
 
     return RedirectResponse(url="/add_bids", status_code=302)
 
