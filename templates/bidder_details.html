@@ -8,14 +8,14 @@
   </head>
   <body>
     <div class="container mt-5">
-      <h2>Bidder Details</h2>
+      <h2>Bidder Details for Tender ID: {{ tender_id }}</h2>
       <table class="table table-bordered">
         <thead>
           <tr>
             <th>Bidder Name</th>
             <th>Bid PDF</th>
-            <th>Transcript Verbatim match</th>
-            <th>Metadata bank guarantee</th>
+            <th>Transcript Verbatim Match</th>
+            <th>Metadata Bank Guarantee</th>
           </tr>
         </thead>
         <tbody>
@@ -26,15 +26,15 @@
             <td>
               {% if bid.transcript %}
                 <!-- Button to Open Modal -->
-                <a href="/transcript/{{ bid.file }}" type="button" class="btn btn-primary">View Transcript</a>
+                <a href="#" type="button" class="btn btn-primary" data-toggle="modal" data-target="#transcriptModal" data-bidname="{{ bid.name }}" data-transcript-url="{{ url_for('transcript', filename='comparison_result_' + bid.file.rsplit('.', 1)[0] + '.pdf') }}">View Transcript</a>
               {% else %}
                 <button class="btn btn-secondary" disabled>Loading Transcript</button>
               {% endif %}
             </td>
             <td>
-              <!-- view comparison  -->
+              <!-- View Metadata -->
                {% if bid.metadata %}
-                <a href="{{ request.url_for('metadata', filename=bid.file) }}" class="btn btn-primary">View Metadata</a>
+                <a href="{{ url_for('metadata', filename=bid.file) }}" class="btn btn-primary">View Metadata</a>
               {% else %}
                 <button class="btn btn-secondary" disabled>Loading Metadata</button>
               {% endif %}
@@ -42,12 +42,12 @@
           </tr>
           {% else %}
             <tr>
-              <td colspan="3">No bids available.</td>
+              <td colspan="4">No bids available for this tender.</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
-      <a href="{{ url_for('add_bids') }}" class="btn btn-secondary">Back to Add Bids</a>
+      <a href="{{ url_for('add_bids', tender_id=tender_id) }}" class="btn btn-secondary">Back to Add Bids</a>
     </div>
 
     <!-- Transcript Modal -->
@@ -84,15 +84,16 @@
       $('#transcriptModal').on('show.bs.modal', function (event) {
         var button = $(event.relatedTarget) // Button that triggered the modal
         var bidName = button.data('bidname') // Extract info from data-* attributes
-        
+        var transcriptUrl = button.data('transcript-url') // URL to fetch transcript
+
         var modal = $(this)
         modal.find('.modal-title').text('Transcript for ' + bidName)
         modal.find('#transcriptContent').html('<p>Loading transcript...</p>')
-        modal.find('#downloadTranscript').attr('href', '/output/'  + 'transcript.docx')
-        
+        modal.find('#downloadTranscript').attr('href', transcriptUrl)
+
         // Fetch the transcript content via AJAX
         $.ajax({
-          url: '/show_transcript/' + encodeURIComponent(bidName),
+          url: transcriptUrl,
           method: 'GET',
           success: function(response){
             if(response.success){
@@ -105,6 +106,12 @@
             modal.find('#transcriptContent').html('<p>An error occurred while loading the transcript.</p>')
           }
         })
+      })
+
+      // Clear the transcript content when modal is hidden
+      $('#transcriptModal').on('hidden.bs.modal', function (e) {
+        $(this).find('#transcriptContent').html('<p>Loading transcript...</p>')
+        $(this).find('#downloadTranscript').attr('href', '#')
       })
     </script>
   </body>

@@ -10,13 +10,20 @@
     <div class="container">
       <h2>Add Bids</h2>
       <form method="post" enctype="multipart/form-data">
+        <!-- Hidden field to include tender_id in the form submission -->
+        {% if tender_id %}
+          <input type="hidden" name="tender_id" value="{{ tender_id }}">
+        {% else %}
+          <input type="hidden" name="tender_id" value="0">
+        {% endif %}
+
         <div class="form-group">
           <label for="bid_name">Bid Name</label>
           <input type="text" class="form-control" id="bid_name" name="bid_name" required>
         </div>
         <div class="form-group">
           <label for="bid_pdf">Upload Bank Guarantee PDF</label>
-          <input type="file" class="form-control-file" id="bid_pdf" name="bid_pdf" required>
+          <input type="file" class="form-control-file" id="bid_pdf" name="bid_pdf" accept="application/pdf" required>
         </div>
         <button type="submit" class="btn btn-primary btn-block">Add Another Bid</button>
       </form>
@@ -32,7 +39,7 @@
             <!-- Modify the View PDF link to trigger the modal -->
             <a href="#" class="view-pdf-link" data-toggle="modal" data-target="#pdfModal" data-pdf-url="{{ url_for('uploaded_file', filename=bid.file) }}">View PDF</a>
             <!-- For debugging purposes -->
-<p>Filename: {{ bid.file }}</p>
+            <p>Filename: {{ bid.file }}</p>
           </div>
           <form action="{{ url_for('delete_bid', bid_index=loop.index0) }}" method="post" style="margin: 0;">
             <button type="submit" class="btn btn-danger btn-sm">Delete</button>

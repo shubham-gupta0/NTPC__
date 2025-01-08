@@ -64,8 +64,8 @@
                         {% endif %}
                     </td>
                     <td>
-                        <a href="/tender/{{ tender.id }}" class="btn btn-info btn-sm me-2">View</a>
-                        <a href="/tender/{{ tender.id }}/edit" class="btn btn-primary btn-sm me-2">Edit</a>
+                        <a href="/bidder_details?tender_id={{ tender.id }}" class="btn btn-info btn-sm me-2">View</a>
+                        <a href="/add_bids?tender_id={{ tender.id }}" class="btn btn-primary btn-sm me-2">Edit</a>
                         <form action="/tender/{{ tender.id }}/delete" method="post" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this tender?');">
                             <button type="submit" class="btn btn-danger btn-sm">Delete</button>
                         </form>

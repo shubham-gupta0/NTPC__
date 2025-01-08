@@ -533,12 +533,16 @@ async def view_tender(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 @app.get("/add_bids", response_class=HTMLResponse)
-async def add_bids_page(request: Request):
+async def add_bids_page(request: Request, tender_id: int = None):
+    """
+    Render the Add Bids page. If a tender_id is provided via query parameters,
+    include it in the template context.
+    """
     bids = request.session.get("bids", [])
     return templates.TemplateResponse(
-        "add_bids.html", {"request": request, "bids": bids}
+        "add_bids.html",
+        {"request": request, "bids": bids, "tender_id": tender_id}
     )
-
 
 @app.post("/add_bids")
 async def add_bids(
@@ -551,17 +555,25 @@ async def add_bids(
     print("CALLING ADD BIDS")
     bid_pdf_path = UPLOAD_FOLDER / secure_filename(bid_pdf.filename)
     input_filename = os.path.splitext(bid_pdf.filename)[0]
+    
+    # Reset file pointer after reading for size
+    bid_pdf.file.seek(0)
+    
+    # Read file content once
+    content = await bid_pdf.read()
+    
     # Check file size (in MB)
-    pdf_file_size = len(await bid_pdf_path.read()) / (1024 * 1024)
+    pdf_file_size = len(content) / (1024 * 1024)
+    
     user = await db.execute(
         text("SELECT * FROM users WHERE id = :user_id"),
-        {"user_id": request.session["userid"]},
+        {"user_id": request.session.get("userid")},
     )
     user = user.fetchone()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # fix it available_space = 1GB - user.total_storage_used
+    # Calculate available space (1GB = 1024MB)
     available_space = 1024 - user.total_storage_used
     # Check if the user has enough space
     if pdf_file_size > available_space:
@@ -593,19 +605,22 @@ async def add_bids(
             generate_transcript(input_filename, bid_pdf_path)
             print("TRANSCRIPT GENERATED")
         except Exception as e:
-            # Log the error (could be replaced with proper logging)
-            print(f"Error generating transcript for ID {id}: {e}")
+            # Log the error (use proper logging in production)
+            print(f"Error generating transcript for ID {tender_id}: {e}")
 
     # Save the uploaded file
     async with aiofiles.open(bid_pdf_path, "wb") as f:
-        await f.write(await bid_pdf.read())
+        await f.write(content)
         # Start the transcript generation process in a separate thread
         print("Starting transcript generation process")
         threading.Thread(target=process_transcript).start()
+    
+    # Update session with the new bid
     if "bids" not in request.session:
         request.session["bids"] = []
     request.session["bids"].append({"name": bid_name, "file": bid_pdf.filename})
-    return RedirectResponse(url="/add_bids", status_code=302)
+    
+    return RedirectResponse(url=f"/add_bids?tender_id={tender_id}", status_code=302)
 
 
 @app.post("/delete_bid/{bid_index}")
@@ -623,21 +638,20 @@ async def delete_bid(bid_index: int, request: Request):
 
 
 @app.get("/bidder_details", response_class=HTMLResponse)
-async def bidder_details_page(request: Request):
+async def bidder_details_page(request: Request, tender_id: int):
     bids = request.session.get("bids", [])
-    for bid in bids:
+    filtered_bids = [bid for bid in bids if bid.get("tender_id") == tender_id]
+    
+    for bid in filtered_bids:
         input_filename = os.path.splitext(bid["file"])[0]
-        print(input_filename)
-        transcript_path = (
-            OUTPUT_FOLDER / f"comparison_result_{input_filename}.pdf"
-        )  # Changed from .docx to .pdf
+        transcript_path = OUTPUT_FOLDER / f"comparison_result_{input_filename}.pdf"
         bid["transcript"] = transcript_path.exists()
         metadata_path = OUTPUT_FOLDER / f"metadata_{input_filename}.txt"
         bid["metadata"] = metadata_path.exists()
 
     return templates.TemplateResponse(
         "bidder_details.html",
-        {"request": request, "bids": bids, "route_name": "bidder_details"},
+        {"request": request, "bids": filtered_bids, "tender_id": tender_id, "route_name": "bidder_details"},
     )
 
 
