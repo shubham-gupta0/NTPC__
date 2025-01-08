@@ -203,6 +203,11 @@ async def login(
 
     return RedirectResponse(url="/dashboard", status_code=302)
 
+"""    LOGIC FOR LOGOUT PAGE        """
+@app.get("/logout")
+async def logout(request: Request):
+    request.session.clear()  # Clear all session data
+    return RedirectResponse(url="/login", status_code=303)  # Redirect to login page
 
 """ ADMIN   LOGIC FOR ADDING NEW USER  only admin can add new user      """
 
@@ -276,7 +281,7 @@ async def all_users(request: Request, db: AsyncSession = Depends(get_db)):
 
     # Only retrieve users with role='0', ordered by descending ID
     result = await db.execute(
-        text("SELECT * FROM users WHERE role = '0' ORDER BY id DESC")
+        text("SELECT * FROM users ORDER BY id ASC")
     )
     users = result.fetchall()
     print(users)
@@ -301,7 +306,8 @@ async def update_user(
     # Validate role
     if role not in ["admin", "user"]:
         raise HTTPException(status_code=400, detail="Invalid role selected.")
-
+    # Map role string to integer
+    role_value = 1 if role == "admin" else 0
     # Check if user exists
     user = await db.execute(
         text("SELECT * FROM users WHERE id = :user_id"),
@@ -322,7 +328,7 @@ async def update_user(
         raise HTTPException(status_code=400, detail="Username or email already exists.")
 
     # Prepare the update statement
-    update_fields = {"username": username, "email": email, "role": role}
+    update_fields = {"username": username, "email": email, "role": role_value}
 
     if password:
         hashed_password = pwd_context.hash(password)
@@ -408,42 +414,64 @@ async def create_task_tender(
     pdf_file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
-    # BANK LIST
+    # Read file content once
+    pdf_file_content = await pdf_file.read()
+    
     # Check file size (in MB)
-    pdf_file_size = len(await pdf_file.read()) / (1024 * 1024)
+    pdf_file_size = len(pdf_file_content) / (1024 * 1024)
+
+    # Validate file type
+    if pdf_file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Invalid file type. Only PDF files are allowed.")
 
     # Fetch the user's storage information
-    user = await db.execute(
+    user_result = await db.execute(
         text("SELECT * FROM users WHERE id = :user_id"),
-        {"user_id": request.session["userid"]},
+        {"user_id": request.session.get("userid")},
     )
-    user = user.fetchone()
+    user = user_result.fetchone()
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # fix it available_space = 1GB - user.total_storage_used
-    available_space = 1024 - user.total_storage_used
+    # Calculate available space (assuming total_storage_used is in MB)
+    total_storage_limit = 1024  # 1 GB in MB
+    available_space = total_storage_limit - user.total_storage_used
+
     # Check if the user has enough space
     if pdf_file_size > available_space:
         raise HTTPException(
             status_code=400, detail="Not enough storage space available"
         )
-    # 4. Parse validity_date to datetime object
+
+    # Parse validity_date to datetime object
     try:
         validity_date = datetime.strptime(validity_date, '%Y-%m-%d')
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
 
+    # Calculate the next id for the user
+    max_id_result = await db.execute(
+        text("SELECT MAX(id) FROM tenders WHERE user_id = :user_id"),
+        {"user_id": user.id},
+    )
+    max_id = max_id_result.scalar()
+    tender_id = 0 if max_id is None else max_id + 1
+
     # Save the file
-    pdf_file_path = UPLOAD_FOLDER / secure_filename(pdf_file.filename)
+    filename = secure_filename(pdf_file.filename)
+    pdf_file_path = UPLOAD_FOLDER / filename
     async with aiofiles.open(pdf_file_path, "wb") as f:
-        await f.write(await pdf_file.read())
-    #set validity
-    # Add the bid to the database
-    new_bid = Tender(name=tender_title, valid_until=validity_date, user_id=user.id)
-    print(new_bid)
-    db.add(new_bid)
+        await f.write(pdf_file_content)
+
+    # Add the tender to the database with user-specific id
+    new_tender = Tender(
+        id=tender_id,
+        name=tender_title,
+        valid_until=validity_date,
+        user_id=user.id
+    )
+    db.add(new_tender)
 
     # Update the user's used storage
     new_used_storage = user.total_storage_used + pdf_file_size
@@ -454,13 +482,18 @@ async def create_task_tender(
         {"new_used_storage": new_used_storage, "user_id": user.id},
     )
 
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
 
     return RedirectResponse(url="/add_bids", status_code=302)
 
 
 # View tender
-@app.get("/view_tender, response_class=HTMLResponse")
+@app.get("/view_tender", response_class=HTMLResponse)
 async def view_tender(request: Request, db: AsyncSession = Depends(get_db)):
     # for userid get all tenders
     result = await db.execute(
