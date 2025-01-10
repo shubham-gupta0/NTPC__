@@ -263,6 +263,17 @@ async def add_user(
         {"username": username, "password_hash": hashed_password, "email": email},
     )
     await db.commit()
+    
+    # Retrieve the newly created user's ID
+    user_result = await db.execute(
+        text("SELECT id FROM Users WHERE username = :username AND email = :email"),
+        {"username": username, "email": email},
+    )
+    new_user_id = user_result.scalar_one()
+
+    # Create a directory for the user
+    user_folder = UPLOAD_FOLDER / str(new_user_id)
+    user_folder.mkdir(parents=True, exist_ok=True)
 
     return JSONResponse(content={"message": "User added successfully"})
 

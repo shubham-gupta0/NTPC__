@@ -177,16 +177,16 @@ def compare_documents(comparison_id, text1_path, text2_path, output_dir=OUTPUT_F
             dmp.diff_cleanupSemantic(diffs)
         
         # Generate professional HTML output
-        html_output = generate_professional_html_diff(diffs, text1, text2, comparison_id)
+        # html_output = generate_professional_html_diff(diffs, text1, text2, comparison_id)
         
         # Prepare file paths with comparison_id
-        html_file_path = os.path.join(output_dir, f'comparison_result_{comparison_id}.html')
+        # html_file_path = os.path.join(output_dir, f'comparison_result_{comparison_id}.html')
         insertions_csv_path = os.path.join(output_dir, f'insertions_{comparison_id}.csv')
         deletions_csv_path = os.path.join(output_dir, f'deletions_{comparison_id}.csv')
         
         # Save HTML output
-        with open(html_file_path, 'w', encoding='utf-8') as html_file:
-            html_file.write(html_output)
+        # with open(html_file_path, 'w', encoding='utf-8') as html_file:
+        #     html_file.write(html_output)
         
         # Prepare and save CSV files for insertions and deletions
         insertions = []
@@ -210,17 +210,17 @@ def compare_documents(comparison_id, text1_path, text2_path, output_dir=OUTPUT_F
             csv_writer.writerow(['Deleted Text'])
             csv_writer.writerows(deletions)
         
-        html_file_path = save_interactive_html_diff(
-            diffs, 
-            text1,  # You'll need to pass the original text
-            text2,  # You'll need to pass the modified text
-            comparison_id
-        )
-        print(f"HyperLink Saved at: {html_file_path}")
+        # html_file_path = save_interactive_html_diff(
+        #     diffs, 
+        #     text1,  # You'll need to pass the original text
+        #     text2,  # You'll need to pass the modified text
+        #     comparison_id
+        # )
+        # print(f"HyperLink Saved at: {html_file_path}")
 
         return {
             'diffs': diffs,
-            'html_file': html_file_path,
+            # 'html_file': html_file_path,
             'insertions_csv': insertions_csv_path,
             'deletions_csv': deletions_csv_path
         }
