@@ -1,8 +1,8 @@
 
 
 -- Users table
-CREATE TABLE IF NOT EXISTS Users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE Users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
@@ -12,11 +12,10 @@ CREATE TABLE IF NOT EXISTS Users (
 );
 
 -- INSERt
-INSERT INTO Users (username, password_hash, email,role) VALUES ('admins', 'admin','admins',1)
 
 -- Tenders table
 CREATE TABLE Tenders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     user_id INT NOT NULL,
     name TEXT NOT NULL,
     valid_until TIMESTAMP NOT NULL,
@@ -30,7 +29,7 @@ INSERT INTO Tenders (user_id, name, valid_until) VALUES (1, 'Tender 1', '2021-12
 
 -- PDF files table
 CREATE TABLE PdfFiles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     tender_id INT NOT NULL,
     user_id INT NOT NULL,
     file_name VARCHAR(255) NOT NULL,
@@ -43,7 +42,7 @@ CREATE TABLE PdfFiles (
 
 -- Transcript files table
 CREATE TABLE Transcripts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     pdf_id INT NOT NULL,
     file_path VARCHAR(255) NOT NULL, -- Path to the fixed transcript file
     errors JSONB, -- Errors as JSON (e.g., [{"type": "deletion", "content": "text"}])
@@ -56,7 +55,7 @@ CREATE TABLE Transcripts (
 
 -- Meta files table
 CREATE TABLE MetaFiles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     pdf_id INT NOT NULL,
     file_path VARCHAR(255) NOT NULL, -- Path to the fixed metadata file
     status INTEGER DEFAULT 0, -- 0: Pending, 1: Fixed, 2: Rejected

@@ -1,12 +1,8 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>Add Bids</title>
-    <!-- Include Bootstrap CSS or other styles as needed -->
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-  </head>
-  <body>
+{% extends "layout.html" %}
+
+{% block title %}add bids{% endblock %}
+
+{% block content %}
     <div class="container">
       <h2>Add Bids</h2>
       <form method="post" enctype="multipart/form-data">
@@ -99,5 +95,4 @@
         })
       })
     </script>
-  </body>
-</html>
+{% endblock %}
