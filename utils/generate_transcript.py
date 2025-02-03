@@ -41,8 +41,9 @@ def generate_transcript(input_name, pdf_path,user_id,tender_id,pdf_id,db):
 
     #Generate Metadata
     print('Generating Metadata')
-    metadata_path=getMetadata(input_name, extracted_text_path, OUTPUT_FOLDER)
+    # metadata_path=getMetadata(input_name, extracted_text_path, OUTPUT_FOLDER)
     print('Metadata Generated')
+    metadata_path=""
     
     # TODO: Return the extracted text path of transcript, csv path of comparison, and metadata path
     
