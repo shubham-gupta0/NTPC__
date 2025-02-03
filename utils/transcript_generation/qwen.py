@@ -4,6 +4,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import os
 
 # Constants
+# MODEL_NAME = "microsoft/Phi-3.5-mini-instruct"
 MODEL_NAME = "microsoft/Phi-3.5-mini-instruct"
 
 def load_model_and_tokenizer(model_name: str):

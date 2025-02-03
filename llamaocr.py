@@ -39,10 +39,19 @@ with st.sidebar:
             with st.spinner("Processing image..."):
                 try:
                     response = ollama.chat(
-                        model='llama3.2-vision',
+                        model='chevalblanc/gpt-4o-mini',
                         messages=[{
                             'role': 'user',
-                            'content': """Extract the complete text from the given image .""",
+                            'content': """
+                                    Extract and provide all text present in the given image. Ensure that every single piece of text, including headings, body text, footnotes, and any other visible content, is captured accurately and comprehensively.
+
+Requirements:
+	1.	Include all text exactly as it appears in the image, maintaining the original structure, formatting, and order (e.g., paragraphs, line breaks).
+	2.	Do not omit any text, regardless of its size, position, or perceived importance.
+	3.	Present the extracted text as plain text in the output.
+
+Ensure the output is precise and complete.
+                            """,
                             'images': [uploaded_file.getvalue()]
                         }]
                     )
