@@ -367,13 +367,13 @@ async def dashboard(request: Request):
         return templates.TemplateResponse("dashboard.html", {"request": request})
 
 
-@app.get("/compare1", response_class=HTMLResponse)
+@app.get("/EMD_BG", response_class=HTMLResponse)
 async def doc1(request: Request):
     # Check if the user is already logged in
     if not request.session.get("logged_in"):
         return RedirectResponse(url="/login", status_code=302)
 
-    return templates.TemplateResponse("doc1_dashboard.html", {"request": request})
+    return templates.TemplateResponse("EMD_dashboard.html", {"request": request})
 
 
 """ Tender LOGIC TO ADD, VIEW AND DELETE TENDER """
@@ -446,20 +446,25 @@ async def add_bids_page(
     print(tender_id)
     if not request.session.get("logged_in"):
         return RedirectResponse(url="/login", status_code=302)
-
-    bids = await db.execute(
-        text("SELECT * FROM pdffiles WHERE tender_id = :tender_id"),
-        {"tender_id": tender_id},
+    
+    user_id = request.session.get("userid")
+    # TODO: search for tender id for that particular user and if not found ask to create one
+    # Fetch all bids (PDF files) for the tender and the current user
+    bids_result = await db.execute(
+        text("SELECT * FROM pdffiles WHERE tender_id = :tender_id AND user_id = :user_id"),
+        {"tender_id": tender_id, "user_id": user_id},
     )
+    bids = bids_result.fetchall()
+    print(bids)
     return templates.TemplateResponse(
         "add_bids.html", {"request": request, "bids": bids, "tender_id": tender_id}
     )
-@app.post("/add_bids")
+@app.post("/add_bids/{tender_id}")
 async def add_bids(
     request: Request,
+    tender_id: int,
     bid_name: str = Form(...),
     bid_pdf: UploadFile = File(...),
-    tender_id: int = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
     print("CALLING ADD BIDS")
@@ -498,7 +503,10 @@ async def add_bids(
         file_size=pdf_file_size,
         file_path=str(bid_pdf_path),
     )
+    print(new_pdf)
     db.add(new_pdf)
+    await db.commit()
+    
     # Update the user's used storage
     new_used_storage = user.total_storage_used + pdf_file_size
     await db.execute(
@@ -507,13 +515,14 @@ async def add_bids(
         ),
         {"new_used_storage": new_used_storage, "user_id": user.id},
     )
+    await db.commit()
 
     # Generate transcript asynchronously
     def process_transcript():
         try:
             print("GENERATING TRANSCRIPT")
-            generate_transcript(input_filename, bid_pdf_path)
-            print("TRANSCRIPT GENERATED")
+            a=generate_transcript(input_filename, bid_pdf_path,user.id, tender_id,new_pdf.id,db)
+            print(f"\n\nTRANSCRIPT GENERATED {a}\n\n")
         except Exception as e:
             # Log the error (use proper logging in production)
             print(f"Error generating transcript for ID {tender_id}: {e}")
@@ -530,4 +539,73 @@ async def add_bids(
         request.session["bids"] = []
     request.session["bids"].append({"name": bid_name, "file": bid_pdf.filename})
     
-    return RedirectResponse(url=f"/add_bids?tender_id={tender_id}", status_code=302)
+    return RedirectResponse(url=f"/add_bids/{tender_id}", status_code=302)
+
+@app.get("/view_bids/{pdf_id}", name="view_bids")
+async def view_bids(pdf_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+    user_id = request.session.get("userid")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    result = await db.execute(
+        text("SELECT * FROM pdfFiles WHERE id = :pdf_id AND user_id = :user_id"),
+        {"pdf_id": pdf_id, "user_id": user_id},
+    )
+    pdf = result.fetchone()
+    print(pdf)
+    if not pdf:
+        raise HTTPException(status_code=404, detail="File not found")
+    file_path = Path(pdf.file_path)
+    if file_path.exists():
+        return FileResponse(str(file_path))
+    raise HTTPException(status_code=404, detail="File not found")
+
+@app.post("/delete_bid/{pdf_id}", name="delete_bid")
+async def delete_bids(
+    pdf_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    if not request.session.get("logged_in"):
+        return RedirectResponse(url="/login", status_code=302)
+
+    user_id = request.session.get("userid")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # Fetch the PDF file
+    result = await db.execute(
+        text("SELECT * FROM pdffiles WHERE id = :pdf_id AND user_id = :user_id"),
+        {"pdf_id": pdf_id, "user_id": user_id},
+    )
+    pdf = result.fetchone()
+    if not pdf:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Delete the PDF file
+    pdf_file_path = Path(pdf.file_path)
+    if pdf_file_path.exists():
+        pdf_file_path.unlink()
+        
+    # Update the user's storage
+    result = await db.execute(
+        text("SELECT * FROM users WHERE id = :user_id"),
+        {"user_id": user_id},
+    )
+    user = result.fetchone()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    new_used_storage = user.total_storage_used - pdf.file_size
+    await db.execute(
+        text("UPDATE users SET total_storage_used = :new_used_storage WHERE id = :user_id"),
+        {"new_used_storage": new_used_storage, "user_id": user_id},
+    )
+    await db.commit()
+    
+
+    # Delete the PDF file record
+    await db.execute(
+        text("DELETE FROM pdffiles WHERE id = :pdf_id"),
+        {"pdf_id": pdf_id},
+    )
+    await db.commit()
+    return RedirectResponse(url=f"/add_bids/{pdf.tender_id}", status_code=302)
