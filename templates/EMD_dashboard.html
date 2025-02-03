@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="card">
+    <div class="card-header">
+      <h2>Dashboard for EMD Bank Guarantee</h2>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-3">
+          <button class="btn btn-primary btn-block" onclick="location.href='/tender'">Create Evaluation Task</button>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-warning btn-block" onclick="location.href='/view_tender'">Update Task</button>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-info btn-block" onclick="location.href='/task3'">Previous History</button>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-success btn-block" onclick="location.href='/task4'">Completed Task</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

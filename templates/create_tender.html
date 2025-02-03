@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+
+{% block title %}Create Task{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h2>Create Evaluation Task</h2>
+        </div>
+        <div class="card-body">
+          <form method="post" action="/tender" enctype="multipart/form-data">
+            <div class="form-group">
+              <label for="tender_ref">Tender Reference Number</label>
+              <input type="text" class="form-control" id="tender_ref" name="tender_ref" required>
+            </div>
+            <div class="form-group">
+              <label for="tender_title">Tender Title</label>
+              <input type="text" class="form-control" id="tender_title" name="tender_title" required>
+            </div>
+            <div class="form-group">
+              <label for="validity_date">Minimum bank guarantee date</label>
+              <input type="date" class="form-control" id="validity_date" name="validity_date" required>
+            </div>
+            <!-- <div class="form-group">
+              <label for="pdf_file">Upload list of approved banks</label>
+              <input type="file" class="form-control-file" id="pdf_file" name="pdf_file" required>
+            </div> -->
+            <button type="submit" class="btn btn-primary btn-block">Next</button>
+            <!-- <button type="submit" name="submit_task" class="btn btn-success btn-block">Submit</button> -->
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

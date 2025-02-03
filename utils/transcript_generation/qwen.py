@@ -17,6 +17,7 @@ def load_model_and_tokenizer(model_name: str):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     return model, tokenizer
 
+
 def prepare_prompt(ocr_text: str) -> str:
     """Create a formatted question prompt for entity extraction."""
     return f"""

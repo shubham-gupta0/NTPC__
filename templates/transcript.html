@@ -1,4 +1,3 @@
-<!-- templates/transcript.html -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -10,7 +9,7 @@
     <style>
         .pdf-iframe {
             width: 100%;
-            height: 70%;
+            height: 1600px;
             border: 1px solid #ddd;
         }
         /* Adjust headings for consistency */
@@ -23,7 +22,6 @@
             border: none;
             cursor: pointer;
             padding: 0.2rem; /* Increased padding */
-            margin-right: 10px; /* Increased margin */
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -34,57 +32,59 @@
         .decision-btn:hover {
             opacity: 0.7;
         }
+        /* Additional styles for button container */
+        .button-container {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .button-container .btn {
+            margin: 0 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container-fluid">
+        <!-- Button Container -->
+        <div class="button-container">
+            <a href="{{ standard_document_url }}" class="btn btn-primary" target="_blank">
+                View Standard Document
+            </a>
+            <a href="{{ bidder_document_url }}" class="btn btn-secondary" target="_blank">
+                View Bidder's Document
+            </a>
+        </div>
+
         <h1 class="mb-4 text-center">Transcript for {{ bid_name }}</h1>
         <div class="row g-1">
-            <!-- Section 1: Insertions and Deletions Tables -->
-            <div class="col-md-5">
-                <h3>Changes</h3>
-                {% if insertions or deletions %}
-                <div class="table-responsive  table-section">
+            <!-- Section 1: Insertions Table -->
+            <div class="col-md-4">
+                <h3>Insertions</h3>
+                {% if insertions %}
+                <div class="table-responsive table-section">
                     <table class="table table-striped table-bordered table-hover">
-                        <thead class="table-dark">
+                        <thead class="table-success">
                             <tr>
-                                <th>Id</th>
-                                <th>Pg</th>
-                                <th>Type</th>
                                 <th>Text</th>
                                 <th>Remarks</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for insertion in insertions %}
-                            <tr class="table-success" data-id="{{ insertion.Index }}">
-                                <td>{{ insertion.Index }}</td>
-                                <td>{{ insertion.Page }}</td>
-                                <td>Insertion</td>
+                            <tr data-id="{{ insertion.Index }}">
                                 <td>{{ insertion }}</td>
                                 <td>
-                                    <button class="decision-btn" onclick="handleDecision('accept', '{{ insertion.Index }}')" aria-label="Accept Change">
-                                        <i class="bi bi-check-circle-fill text-success fs-3" title="Accept"></i>
-                                    </button>
-                                    <button class="decision-btn" onclick="handleDecision('reject', '{{ insertion.Index }}')" aria-label="Reject Change">
-                                        <i class="bi bi-x-circle-fill text-danger fs-3" title="Reject"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                            {% for deletion in deletions %}
-                            <tr class="table-danger" data-id="{{ deletion.Index }}">
-                                <td>{{ deletion.Index }}</td>
-                                <td>{{ deletion.Page }}</td>
-                                <td>Deletion</td>
-                                <td>{{ deletion }}</td>
-                                <td>
-                                    <button class="decision-btn" onclick="handleDecision('accept', '{{ deletion.Index }}')" aria-label="Accept Change">
-                                        <i class="bi bi-check-circle-fill text-success fs-3" title="Accept"></i>
-                                    </button>
-                                    <button class="decision-btn" onclick="handleDecision('reject', '{{ deletion.Index }}')" aria-label="Reject Change">
-                                        <i class="bi bi-x-circle-fill text-danger fs-3" title="Reject"></i>
-                                    </button>
+                                    <!-- Button Group Container for Horizontal Alignment -->
+                                    <div class="d-flex justify-content-start align-items-center gap-0">
+                                        <button class="decision-btn" onclick="handleDecision('accept', '{{ loop.index }}')" aria-label="Accept Change">
+                                            <i class="bi bi-check-circle-fill text-success fs-3" title="Accept"></i>
+                                        </button>
+                                        <button class="decision-btn" onclick="handleDecision('reject', '{{ loop.index }}')" aria-label="Reject Change">
+                                            <i class="bi bi-x-circle-fill text-danger fs-3" title="Reject"></i>
+                                        </button>
+                                        <button class="decision-btn" onclick="handleDecision('ignore', '{{ loop.index }}')" aria-label="Ignore Change">
+                                            <i class="bi bi-question-circle-fill text-warning fs-3" title="Ignore"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -92,27 +92,62 @@
                     </table>
                 </div>
                 {% else %}
-                <p>No changes available.</p>
+                <p>No insertions available.</p>
                 {% endif %}
             </div>
-            
-            <!-- Section 2: Original PDF -->
-            <div class="col-md-3">
-                <h3>Original PDF</h3>
-                {% if original_pdf_url %}
-                <iframe src="{{ original_pdf_url }}" class="pdf-iframe"  title="Original PDF"></iframe>
-                {% else %}
-                <p>Original PDF not available.</p>
-                {% endif %}
-            </div>
-            
-            <!-- Section 3: Generated Transcript PDF -->
+
+            <!-- Section 2: Transcript PDFs -->
             <div class="col-md-4">
-                <h3>Generated Transcript PDF</h3>
-                {% if generated_pdf_url %}
-                <iframe src="{{ generated_pdf_url }}" class="pdf-iframe"  title="Generated Transcript PDF"></iframe>
+                <div class="row">
+                    <!-- Generated Transcript PDF -->
+                    <div class="col-12">
+                        <h3>Generated Transcript PDF</h3>
+                        {% if generated_pdf_url %}
+                        <iframe src="{{ generated_pdf_url }}" class="pdf-iframe" title="Generated Transcript PDF"></iframe>
+                        {% else %}
+                        <p>Transcript PDF not available.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 3: Deletions Table -->
+            <div class="col-md-4">
+                <h3>Deletions in Bank Guarantee</h3>
+                {% if deletions %}
+                <div class="table-responsive table-section">
+                    <table class="table table-striped table-bordered table-hover">
+                        <thead class="table-danger">
+                            <tr>
+                                <th>Text</th>
+                                <th>Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for deletion in deletions %}
+                            <tr data-id="{{ deletion.Index }}">
+                                <td>{{ deletion }}</td>
+                                <td>
+                                    <!-- Button Group Container for Horizontal Alignment -->
+                                    <div class="d-flex justify-content-start align-items-center gap-0">
+                                        <button class="decision-btn" onclick="handleDecision('accept', '{{ loop.index }}')" aria-label="Accept Change">
+                                            <i class="bi bi-check-circle-fill text-success fs-3" title="Accept"></i>
+                                        </button>
+                                        <button class="decision-btn" onclick="handleDecision('reject', '{{ loop.index }}')" aria-label="Reject Change">
+                                            <i class="bi bi-x-circle-fill text-danger fs-3" title="Reject"></i>
+                                        </button>
+                                        <button class="decision-btn" onclick="handleDecision('ignore', '{{ loop.index }}')" aria-label="Ignore Change">
+                                            <i class="bi bi-question-circle-fill text-warning fs-3" title="Ignore"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
                 {% else %}
-                <p>Transcript PDF not available.</p>
+                <p>No deletions available.</p>
                 {% endif %}
             </div>
         </div>

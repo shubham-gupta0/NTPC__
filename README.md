@@ -39,7 +39,7 @@ python setup.py
 
 \myenv\Scripts\activate                                                                                                  
 pip install "fastapi[standard]"
-fastapi dev .\main.py  
+fastapi dev .\app.py  
 ```
 
 ### 2. Docker 
