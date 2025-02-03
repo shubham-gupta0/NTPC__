@@ -2,7 +2,7 @@ from datetime import datetime
 import os
 from config import *
 from .transcript_generation.image_processing import preprocess_image
-from .transcript_generation.pdf_processing import convert_pdf_to_image, HtmlToPdf
+from .transcript_generation.pdf_processing import convert_pdf_to_image
 from .transcript_generation.ocr_processing import initialize_ocr, perform_ocr
 from .transcript_generation.comparison import compare_documents
 from .transcript_generation.qwen import getMetadata
@@ -41,12 +41,10 @@ def generate_transcript(input_name, pdf_path,user_id,tender_id,pdf_id,db):
 
     #Generate Metadata
     print('Generating Metadata')
-    getMetadata(input_name, extracted_text_path, OUTPUT_FOLDER)
+    metadata_path=getMetadata(input_name, extracted_text_path, OUTPUT_FOLDER)
     print('Metadata Generated')
     
     # TODO: Return the extracted text path of transcript, csv path of comparison, and metadata path
     
-    return {extracted_text_path}
-
-
+    return {extracted_text_path,metadata_path,comparisons['insertions_csv_path'],comparisons['deletions_csv_path']}
 

@@ -1,68 +1,46 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Metadata Details - {{ bid_name }}</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            padding-top: 50px;
-        }
-        .table-container {
-            margin-top: 30px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <!-- Header -->
-        <div class="row">
-            <div class="col text-center">
-                <h2>Metadata Details for "{{ bid_name }}"</h2>
-            </div>
-        </div>
-
-        <!-- Metadata Table -->
-        <div class="row table-container">
-            <div class="col">
-                {% if metadata %}
-                <table class="table table-bordered table-hover">
-                    <thead class="thead-dark">
-                        <tr>
-                            <th scope="col">Entity Name</th>
-                            <th scope="col">Value</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in metadata %}
-                        <tr>
-                            <td>{{ item['Entity Name'] }}</td>
-                            <td>{{ item['Value'] }}</td>
-                        
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}
-                <div class="alert alert-warning" role="alert">
-                    No metadata available for this bid.
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Back Button -->
-        <div class="row">
-            <div class="col text-center">
-                <a href="/dashboard" class="btn btn-primary">Back to Dashboard</a>
-            </div>
-        </div>
+{% extends "layout.html" %} {% block title %}Metadata Details - {{ bid_name }}{%
+endblock %} {% block content %}
+<div class="container" style="padding-top: 50px">
+  <!-- Header -->
+  <div class="row">
+    <div class="col text-center">
+      <h2>Metadata Details for "{{ bid_name }}"</h2>
     </div>
+  </div>
 
-    <!-- Bootstrap JS and dependencies -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+  <!-- Metadata Table -->
+  <div class="row" style="margin-top: 30px">
+    <div class="col">
+      {% if metadata %}
+      <table class="table table-bordered table-hover">
+        <thead class="thead-dark">
+          <tr>
+            <th scope="col">Entity Name</th>
+            <th scope="col">Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in metadata %}
+          <tr>
+            <td>{{ item['Entity Name'] }}</td>
+            <td>{{ item['Value'] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="alert alert-warning" role="alert">
+        No metadata available for this bid.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Back Button -->
+  <div class="row">
+    <div class="col text-center">
+      <a href="/dashboard" class="btn btn-primary">Back to Dashboard</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

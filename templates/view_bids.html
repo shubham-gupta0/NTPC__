@@ -1,38 +1,33 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>View Bids</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-  </head>
-  <body>
-    <div class="container mt-5">
-      <div class="row justify-content-center">
-        <div class="col-md-8">
-          <div class="card">
-            <div class="card-header">
-              <h2>View Bids</h2>
-            </div>
-            <div class="card-body">
-              <ul class="list-group">
-                {% for bid in bids %}
-                <li class="list-group-item">
-                  <h5>Bid {{ loop.index }}: {{ bid.name }}</h5>
-                  <a href="{{ url_for('view_meta_data', bid_index=loop.index0) }}" class="btn btn-info">View Meta Data</a>
-                  <a href="{{ url_for('view_transcript', bid_index=loop.index0) }}" class="btn btn-primary">View Transcript</a>
-                </li>
-                {% endfor %}
-              </ul>
-            </div>
-          </div>
+{% extends "layout.html" %} {% block title %}View Bids{% endblock %} {% block
+content %}
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <h2>View Bids</h2>
+        </div>
+        <div class="card-body">
+          <ul class="list-group">
+            {% for bid in bids %}
+            <li class="list-group-item">
+              <h5>Bid {{ loop.index }}: {{ bid.name }}</h5>
+              <a
+                href="{{ url_for('view_meta_data', bid_index=loop.index0) }}"
+                class="btn btn-info"
+                >View Meta Data</a
+              >
+              <a
+                href="{{ url_for('view_transcript', bid_index=loop.index0) }}"
+                class="btn btn-primary"
+                >View Transcript</a
+              >
+            </li>
+            {% endfor %}
+          </ul>
         </div>
       </div>
     </div>
-    <!-- Bootstrap JS and dependencies -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-  </body>
-</html>
+  </div>
+</div>
+{% endblock %}

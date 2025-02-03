@@ -56,17 +56,19 @@ def ask_question(model, tokenizer, prompt: str) -> str:
     model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
 
     # Generate response
+    print("Generating response...")
     generated_ids = model.generate(
         **model_inputs,
         max_new_tokens=1024,
         return_dict_in_generate=True,
         output_scores=True
     )
+    print("Response generated.")
 
     # Decode and return the generated text after input length
     input_length = model_inputs.input_ids[0].size(0)
     generated_text = tokenizer.decode(generated_ids.sequences[0][input_length:], skip_special_tokens=True)
-    
+    print("Response decoded.")
     return generated_text
 
 def save_to_file(text: str, file_path: str):
@@ -103,3 +105,6 @@ def getMetadata(id, OCR_TEXT_FILE, OUTPUT_FOLDER):
 
     # Display the extracted values neatly
     display_neatly(response_text)
+    
+    # Return the path to the saved file
+    return os.path.join(OUTPUT_FOLDER, f'metadata_{id}.txt')
