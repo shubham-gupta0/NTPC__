@@ -5,7 +5,7 @@ import os
 
 # Constants
 # MODEL_NAME = "microsoft/Phi-3.5-mini-instruct"
-MODEL_NAME = "microsoft/Phi-3.5-mini-instruct"
+MODEL_NAME = "Qwen/Qwen2.5-1.5B-Instruct"
 
 def load_model_and_tokenizer(model_name: str):
     """Load the language model and tokenizer."""
@@ -16,7 +16,6 @@ def load_model_and_tokenizer(model_name: str):
     )
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     return model, tokenizer
-
 
 def prepare_prompt(ocr_text: str) -> str:
     """Create a formatted question prompt for entity extraction."""

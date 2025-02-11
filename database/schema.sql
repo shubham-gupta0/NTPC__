@@ -62,3 +62,27 @@ CREATE TABLE MetaFiles (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (pdf_id) REFERENCES PdfFiles (id) ON DELETE CASCADE
 );
+
+--insertion csv table
+CREATE TABLE InsertionCsv (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    tender_id INT NOT NULL,
+    user_id INT NOT NULL,
+    row_data TEXT NOT NULL,   -- Content of one CSV row
+    decision INTEGER NOT NULL DEFAULT 0,  -- Decision value: 0, 1, or 2
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tender_id) REFERENCES Tenders (id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES Users (id) ON DELETE CASCADE
+);
+
+--deletion csv table
+CREATE TABLE DeletionCsv (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    tender_id INT NOT NULL,
+    user_id INT NOT NULL,
+    row_data TEXT NOT NULL,   -- Content of one CSV row
+    decision INTEGER NOT NULL DEFAULT 0,  -- Decision value: 0, 1, or 2
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tender_id) REFERENCES Tenders (id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES Users (id) ON DELETE CASCADE
+);

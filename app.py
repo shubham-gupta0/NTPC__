@@ -503,7 +503,6 @@ async def add_bids(
         file_size=pdf_file_size,
         file_path=str(bid_pdf_path),
     )
-    print(new_pdf)
     db.add(new_pdf)
     await db.commit()
     
@@ -518,11 +517,48 @@ async def add_bids(
     await db.commit()
 
     # Generate transcript asynchronously
-    def process_transcript():
+    async def process_transcript():
         try:
-            print("GENERATING TRANSCRIPT")
-            a=generate_transcript(input_filename, bid_pdf_path,user.id, tender_id,new_pdf.id,db)
-            print(f"\n\nTRANSCRIPT GENERATED {a}\n\n")
+            trans_path, metadata_path,ins_csv, del_csv=generate_transcript(input_filename, bid_pdf_path)
+            new_transcript = Transcript(
+                pdf_id=new_pdf.id,
+                file_path=str(trans_path)
+            )
+            db.add(new_transcript)
+            new_meta = MetaFile(
+                pdf_id=new_pdf.id,
+                file_path=str(metadata_path)
+            )
+            db.add(new_meta)
+            await db.commit()
+            # Insert each CSV row from the "insertions" list
+            for row in ins_csv:
+                await db.execute(
+                    text(
+                        "INSERT INTO InsertionCsv (tender_id, user_id, row_data, decision) "
+                        "VALUES (:tender_id, :user_id, :row_data, :decision)"
+                    ),
+                    {
+                        "tender_id": tender_id,
+                        "user_id": user.id,
+                        "row_data": row["row_data"],
+                    },
+                )
+            
+            # Insert each CSV row from the "deletions" list
+            for row in del_csv:
+                await db.execute(
+                    text(
+                        "INSERT INTO DeletionCsv (tender_id, user_id, row_data, decision) "
+                        "VALUES (:tender_id, :user_id, :row_data, :decision)"
+                    ),
+                    {
+                        "tender_id": tender_id,
+                        "user_id": user.id,
+                        "row_data": row["row_data"],
+                    },
+                )
+            await db.commit()
         except Exception as e:
             # Log the error (use proper logging in production)
             print(f"Error generating transcript for ID {tender_id}: {e}")
@@ -531,7 +567,6 @@ async def add_bids(
     async with aiofiles.open(bid_pdf_path, "wb") as f:
         await f.write(content)
         # Start the transcript generation process in a separate thread
-        print("Starting transcript generation process")
         threading.Thread(target=process_transcript).start()
     
     # Update session with the new bid

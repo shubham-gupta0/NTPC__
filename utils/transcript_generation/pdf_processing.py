@@ -28,5 +28,6 @@ config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_PATH)
 
 def HtmlToPdf(id, html_path, output_dir, config=config):
     pdfkit.from_file(html_path, os.path.join(output_dir, f'comparison_result_{id}.pdf'), configuration=config)
+    return os.path.join(output_dir, f'comparison_result_{id}.pdf')
 
 

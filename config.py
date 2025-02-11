@@ -6,6 +6,7 @@ wkhtmltopdf_PATH = r"libs/wkhtmltopdf/bin/wkhtmltopdf.exe"
 
 # Output folder configuration
 OUTPUT_FOLDER = "output"
+HYPERLINK_OUTPUTS = 'hyperlink_outputs'
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 HYPERLINK_OUTPUTS = 'hyperlink_outputs'
 os.makedirs(HYPERLINK_OUTPUTS, exist_ok=True)

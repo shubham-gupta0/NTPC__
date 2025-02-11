@@ -2,14 +2,14 @@ from datetime import datetime
 import os
 from config import *
 from .transcript_generation.image_processing import preprocess_image
-from .transcript_generation.pdf_processing import convert_pdf_to_image
+from .transcript_generation.pdf_processing import convert_pdf_to_image, HtmlToPdf
 from .transcript_generation.ocr_processing import initialize_ocr, perform_ocr
 from .transcript_generation.comparison import compare_documents
 from .transcript_generation.qwen import getMetadata
 import pdfkit
     
     
-def generate_transcript(input_name, pdf_path,user_id,tender_id,pdf_id,db):
+def generate_transcript(input_name, pdf_path):
     # Construct the PDF path based on the provided request_id
     # print(db)
     if not os.path.exists(pdf_path):
@@ -36,16 +36,12 @@ def generate_transcript(input_name, pdf_path,user_id,tender_id,pdf_id,db):
     # store_transcript_details(pdf_id, extracted_text_path, db)
     # print('Transcript Stored in Database')
     #save pdf for transcript
-    # HtmlToPdf(id, os.path.join(OUTPUT_FOLDER, f'comparison_result_{id}.html'), output_dir=OUTPUT_FOLDER)
-    print('Transcript Pdf Generated')
+    trans_path=HtmlToPdf(input_name, os.path.join(OUTPUT_FOLDER, f'comparison_result_{input_name}.html'), output_dir=OUTPUT_FOLDER)
+    print('Transcript Pdf Generated at comparison_result_{input_name}.html')
 
     #Generate Metadata
     print('Generating Metadata')
-    # metadata_path=getMetadata(input_name, extracted_text_path, OUTPUT_FOLDER)
+    metadata_path=getMetadata(input_name, extracted_text_path, OUTPUT_FOLDER)
     print('Metadata Generated')
-    metadata_path=""
     
-    # TODO: Return the extracted text path of transcript, csv path of comparison, and metadata path
-    
-    return {extracted_text_path,metadata_path,comparisons['insertions_csv_path'],comparisons['deletions_csv_path']}
-
+    return (trans_path,metadata_path,comparisons["insertions_csv"],comparisons["deletions_csv"])
