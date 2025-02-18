@@ -1,3 +1,4 @@
+import asyncio
 import csv
 from datetime import datetime
 import os
@@ -505,6 +506,7 @@ async def add_bids(
     )
     db.add(new_pdf)
     await db.commit()
+    await db.refresh(new_pdf)
     
     # Update the user's used storage
     new_used_storage = user.total_storage_used + pdf_file_size
@@ -515,24 +517,38 @@ async def add_bids(
         {"new_used_storage": new_used_storage, "user_id": user.id},
     )
     await db.commit()
-
-    # Generate transcript asynchronously
+    
     async def process_transcript():
         try:
-            trans_path, metadata_path,ins_csv, del_csv=generate_transcript(input_filename, bid_pdf_path)
+            print("calling generate transcript")
+            trans_path, metadata_path, ins_csv, del_csv = generate_transcript(
+                input_filename, bid_pdf_path
+            )
+            # Store a dictionary (not JSONB) in the errors field
             new_transcript = Transcript(
                 pdf_id=new_pdf.id,
-                file_path=str(trans_path)
+                file_path=str(trans_path),
+                decision="0",  # or any string you prefer
+                errors={},      # store an empty dict or any valid dict
             )
             db.add(new_transcript)
+            await db.commit()
             new_meta = MetaFile(
                 pdf_id=new_pdf.id,
-                file_path=str(metadata_path)
+                file_path=str(metadata_path),
             )
             db.add(new_meta)
             await db.commit()
             # Insert each CSV row from the "insertions" list
+            # Process each CSV row from insertions
             for row in ins_csv:
+                if isinstance(row, dict):
+                    row_data = row.get("row_data", "")
+                    decision_val = row.get("decision", 0)
+                else:
+                    # Assume the row is the CSV text itself.
+                    row_data = row
+                    decision_val = 0
                 await db.execute(
                     text(
                         "INSERT INTO InsertionCsv (tender_id, user_id, row_data, decision) "
@@ -541,12 +557,19 @@ async def add_bids(
                     {
                         "tender_id": tender_id,
                         "user_id": user.id,
-                        "row_data": row["row_data"],
+                        "row_data": row_data,
+                        "decision": decision_val,
                     },
                 )
             
-            # Insert each CSV row from the "deletions" list
+            # Process each CSV row from deletions
             for row in del_csv:
+                if isinstance(row, dict):
+                    row_data = row.get("row_data", "")
+                    decision_val = row.get("decision", 0)
+                else:
+                    row_data = row
+                    decision_val = 0
                 await db.execute(
                     text(
                         "INSERT INTO DeletionCsv (tender_id, user_id, row_data, decision) "
@@ -555,24 +578,19 @@ async def add_bids(
                     {
                         "tender_id": tender_id,
                         "user_id": user.id,
-                        "row_data": row["row_data"],
+                        "row_data": row_data,
+                        "decision": decision_val,
                     },
                 )
             await db.commit()
         except Exception as e:
-            # Log the error (use proper logging in production)
             print(f"Error generating transcript for ID {tender_id}: {e}")
 
     # Save the uploaded file
     async with aiofiles.open(bid_pdf_path, "wb") as f:
         await f.write(content)
-        # Start the transcript generation process in a separate thread
-        threading.Thread(target=process_transcript).start()
-    
-    # Update session with the new bid
-    if "bids" not in request.session:
-        request.session["bids"] = []
-    request.session["bids"].append({"name": bid_name, "file": bid_pdf.filename})
+    # Start the transcript generation in a separate thread
+    threading.Thread(target=lambda: asyncio.run(process_transcript())).start()
     
     return RedirectResponse(url=f"/add_bids/{tender_id}", status_code=302)
 
@@ -607,7 +625,7 @@ async def delete_bids(
     if not user_id:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # Fetch the PDF file
+    # Fetch the PDF file record
     result = await db.execute(
         text("SELECT * FROM pdffiles WHERE id = :pdf_id AND user_id = :user_id"),
         {"pdf_id": pdf_id, "user_id": user_id},
@@ -616,31 +634,95 @@ async def delete_bids(
     if not pdf:
         raise HTTPException(status_code=404, detail="File not found")
     
-    # Delete the PDF file
+    # Delete the PDF file from the filesystem if it exists
     pdf_file_path = Path(pdf.file_path)
     if pdf_file_path.exists():
         pdf_file_path.unlink()
-        
-    # Update the user's storage
-    result = await db.execute(
-        text("SELECT * FROM users WHERE id = :user_id"),
-        {"user_id": user_id},
-    )
-    user = result.fetchone()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    new_used_storage = user.total_storage_used - pdf.file_size
+
+    # Option 1: If your DB schema supports ON DELETE CASCADE and SQLite foreign keys are enabled,
+    # simply deleting the PDF record may delete dependent rows.
+    # However, if that's not working you can delete manually.
+    
+    # Delete associated transcript records (and meta files)
     await db.execute(
-        text("UPDATE users SET total_storage_used = :new_used_storage WHERE id = :user_id"),
-        {"new_used_storage": new_used_storage, "user_id": user_id},
+        text("DELETE FROM transcripts WHERE pdf_id = :pdf_id"),
+        {"pdf_id": pdf_id}
+    )
+    await db.execute(
+        text("DELETE FROM metafiles WHERE pdf_id = :pdf_id"),
+        {"pdf_id": pdf_id}
+    )
+    
+    # Delete associated CSV rows – here we assume the CSV rows belong to this bid
+    # (Note: In your schema, CSV tables store tender_id and user_id only.)
+    await db.execute(
+        text("DELETE FROM InsertionCsv WHERE tender_id = :tender_id AND user_id = :user_id"),
+        {"tender_id": pdf.tender_id, "user_id": user_id}
+    )
+    await db.execute(
+        text("DELETE FROM DeletionCsv WHERE tender_id = :tender_id AND user_id = :user_id"),
+        {"tender_id": pdf.tender_id, "user_id": user_id}
     )
     await db.commit()
     
-
-    # Delete the PDF file record
+    # Finally, delete the PDF file record itself
     await db.execute(
         text("DELETE FROM pdffiles WHERE id = :pdf_id"),
-        {"pdf_id": pdf_id},
+        {"pdf_id": pdf_id}
     )
     await db.commit()
+    
     return RedirectResponse(url=f"/add_bids/{pdf.tender_id}", status_code=302)
+
+
+@app.get("/bidder_details/{tender_id}", response_class=HTMLResponse)
+async def bidder_details_page(request: Request, tender_id: int, db: AsyncSession = Depends(get_db)):
+    # Fetch all bids (PDF files) for the given tender
+    result = await db.execute(
+        text("SELECT * FROM pdffiles WHERE tender_id = :tender_id"),
+        {"tender_id": tender_id},
+    )
+    bids = result.fetchall()
+
+    # Create a list of bid details with transcript and metadata information.
+    bids_list = []
+    for bid in bids:
+        # Extract the filename without extension
+        input_filename = os.path.splitext(bid.file_name)[0]
+        transcript_path = OUTPUT_FOLDER / f"comparison_result_{input_filename}.pdf"
+        metadata_path = OUTPUT_FOLDER / f"metadata_{input_filename}.txt"
+        bids_list.append({
+            "id": bid.id,
+            "name": bid.file_name,  # Using file_name as bidder name; adjust if necessary
+            "file": bid.file_name,  # Used for linking to the PDF
+            "transcript": transcript_path.exists(),
+            "metadata": metadata_path.exists(),
+            "tender_id": bid.tender_id
+        })
+
+    return templates.TemplateResponse(
+        "bidder_details.html",
+        {
+            "request": request,
+            "bids": bids_list,
+            "tender_id": tender_id,
+            "route_name": "bidder_details",
+        },
+    )
+    
+@app.get("/uploaded/{filename}", name="uploaded_file")
+async def uploaded_file(filename: str):
+    file_path = UPLOAD_FOLDER / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(str(file_path))
+
+@app.get("/document/{doc_type}/{filename}", name="document")
+async def document_file(doc_type: str, filename: str):
+    # Determine the directory based on doc_type. Here we assume transcripts and metadata are in OUTPUT_FOLDER.
+    if doc_type not in ["transcript", "metadata"]:
+        raise HTTPException(status_code=400, detail="Invalid document type")
+    file_path = OUTPUT_FOLDER / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(str(file_path))

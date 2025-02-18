@@ -1,5 +1,6 @@
-{% extends "layout.html" %} {% block title %}Bidder Details{% endblock %} {%
-block content %}
+{% extends "layout.html" %}
+{% block title %}Bidder Details{% endblock %}
+{% block content %}
 <div class="container mt-5">
   <h2>Bidder Details for Tender ID: {{ tender_id }}</h2>
   <table class="table table-bordered">
@@ -16,22 +17,13 @@ block content %}
       <tr>
         <td>{{ bid.name }}</td>
         <td>
-          <a
-            href="{{ url_for('uploaded_file', filename=bid.file) }}"
-            target="_blank"
-            >View PDF</a
-          >
+          <a href="{{ url_for('uploaded_file', filename=bid.file) }}" target="_blank">View PDF</a>
         </td>
         <td>
           {% if bid.transcript %}
-          <a
-            href="#"
-            class="btn btn-primary"
-            data-toggle="modal"
-            data-target="#transcriptModal"
-            data-bidname="{{ bid.name }}"
-            data-transcript-url="{{ url_for('transcript', filename='comparison_result_' + bid.file.rsplit('.', 1)[0] + '.pdf') }}"
-          >
+          <a href="#" class="btn btn-primary" data-toggle="modal" data-target="#transcriptModal"
+             data-bidname="{{ bid.name }}"
+             data-transcript-url="{{ url_for('document', doc_type='transcript', filename='comparison_result_' + bid.file.rsplit('.', 1)[0] + '.pdf') }}">
             View Transcript
           </a>
           {% else %}
@@ -40,11 +32,8 @@ block content %}
         </td>
         <td>
           {% if bid.metadata %}
-          <a
-            href="{{ url_for('metadata', filename=bid.file) }}"
-            class="btn btn-primary"
-            >View Metadata</a
-          >
+          <a href="{{ url_for('document', doc_type='metadata', filename='metadata_' + bid.file.rsplit('.', 1)[0] + '.txt') }}"
+             class="btn btn-primary">View Metadata</a>
           {% else %}
           <button class="btn btn-secondary" disabled>Loading Metadata</button>
           {% endif %}
@@ -57,31 +46,16 @@ block content %}
       {% endfor %}
     </tbody>
   </table>
-  <a
-    href="{{ url_for('add_bids', tender_id=tender_id) }}"
-    class="btn btn-secondary"
-    >Back to Add Bids</a
-  >
+  <a href="{{ url_for('add_bids', tender_id=tender_id) }}" class="btn btn-secondary">Back to Add Bids</a>
 </div>
 
 <!-- Transcript Modal -->
-<div
-  class="modal fade"
-  id="transcriptModal"
-  tabindex="-1"
-  aria-labelledby="transcriptModalLabel"
-  aria-hidden="true"
->
+<div class="modal fade" id="transcriptModal" tabindex="-1" aria-labelledby="transcriptModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="transcriptModalLabel">Transcript</h5>
-        <button
-          type="button"
-          class="close"
-          data-dismiss="modal"
-          aria-label="Close"
-        >
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
@@ -91,52 +65,44 @@ block content %}
         </div>
       </div>
       <div class="modal-footer">
-        <a href="#" id="downloadTranscript" class="btn btn-success" download
-          >Download Transcript</a
-        >
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">
-          Close
-        </button>
+        <a href="#" id="downloadTranscript" class="btn btn-success" download>Download Transcript</a>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
 </div>
-{% endblock content %} {% block scripts %} {{ super() }}
-<script>
-  $("#transcriptModal").on("show.bs.modal", function (event) {
-    var button = $(event.relatedTarget);
-    var bidName = button.data("bidname");
-    var transcriptUrl = button.data("transcript-url");
-    var modal = $(this);
-    modal.find(".modal-title").text("Transcript for " + bidName);
-    modal.find("#transcriptContent").html("<p>Loading transcript...</p>");
-    modal.find("#downloadTranscript").attr("href", transcriptUrl);
-
-    $.ajax({
-      url: transcriptUrl,
-      method: "GET",
-      success: function (response) {
-        if (response.success) {
-          modal
-            .find("#transcriptContent")
-            .html("<pre>" + response.content + "</pre>");
-        } else {
-          modal
-            .find("#transcriptContent")
-            .html("<p>" + response.message + "</p>");
-        }
-      },
-      error: function () {
-        modal
-          .find("#transcriptContent")
-          .html("<p>An error occurred while loading the transcript.</p>");
-      },
+{% endblock content %}
+{% block scripts %} 
+  {{ super() }}
+  <script>
+    $("#transcriptModal").on("show.bs.modal", function (event) {
+      var button = $(event.relatedTarget);
+      var bidName = button.data("bidname");
+      var transcriptUrl = button.data("transcript-url");
+      var modal = $(this);
+      modal.find(".modal-title").text("Transcript for " + bidName);
+      modal.find("#transcriptContent").html("<p>Loading transcript...</p>");
+      modal.find("#downloadTranscript").attr("href", transcriptUrl);
+  
+      $.ajax({
+        url: transcriptUrl,
+        method: "GET",
+        success: function (response) {
+          if (response.success) {
+            modal.find("#transcriptContent").html("<pre>" + response.content + "</pre>");
+          } else {
+            modal.find("#transcriptContent").html("<p>" + response.message + "</p>");
+          }
+        },
+        error: function () {
+          modal.find("#transcriptContent").html("<p>An error occurred while loading the transcript.</p>");
+        },
+      });
     });
-  });
-
-  $("#transcriptModal").on("hidden.bs.modal", function (e) {
-    $(this).find("#transcriptContent").html("<p>Loading transcript...</p>");
-    $(this).find("#downloadTranscript").attr("href", "#");
-  });
-</script>
+  
+    $("#transcriptModal").on("hidden.bs.modal", function (e) {
+      $(this).find("#transcriptContent").html("<p>Loading transcript...</p>");
+      $(this).find("#downloadTranscript").attr("href", "#");
+    });
+  </script>
 {% endblock scripts %}

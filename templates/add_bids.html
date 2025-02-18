@@ -1,5 +1,6 @@
-{% extends "layout.html" %} {% block title %}add bids{% endblock %} {% block
-content %}
+{% extends "layout.html" %}
+{% block title %}Add Bids{% endblock %}
+{% block content %}
 <div class="container">
   <h2>Add Bids</h2>
   <form method="post" enctype="multipart/form-data">
@@ -55,7 +56,7 @@ content %}
       </div>
       <div class="bid">
         <p>Filename: {{ bid.file_name }}</p>
-        <form action="/delete_bid/{{bid.id }}" method="post" style="display:inline;">
+        <form action="/delete_bid/{{ bid.id }}" method="post" style="display:inline;">
           <button type="submit" class="btn btn-danger">Delete</button>
         </form>
       </div>
@@ -69,9 +70,9 @@ content %}
 
   <!-- Show Transcripts Button -->
   <div class="mt-4">
-    <a href="/bidder_details" class="btn btn-success btn-block"
-      >Submit Bids and View Transcripts</a
-    >
+    <a href="{{ url_for('bidder_details_page', tender_id=tender_id) }}" class="btn btn-success btn-block">
+      Submit Bids and View Transcripts
+    </a>
   </div>
 </div>
 
