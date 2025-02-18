@@ -9,12 +9,14 @@ from .transcript_generation.qwen import getMetadata
 import pdfkit
     
     
-def generate_transcript(input_name, pdf_path):
+def generate_transcript(input_name, pdf_path,id):
     # Construct the PDF path based on the provided request_id
     # print(db)
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"The PDF file for ID {input_name} does not exist at {pdf_path}.")
-
+    OUTPUT_FOLDER = os.path.join("output", str(id))
+    if not os.path.exists(OUTPUT_FOLDER):
+        os.makedirs(OUTPUT_FOLDER)
     # Convert PDF to image
     combined_image_path = convert_pdf_to_image(input_name, pdf_path, OUTPUT_FOLDER, POPPLER_PATH)
     

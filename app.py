@@ -342,7 +342,8 @@ async def update_user(
 
     # Dynamically build the SET part of the SQL statement
     set_clause = ", ".join([f"{key} = :{key}" for key in update_fields.keys()])
-
+    print(set_clause)
+    # Update the user
     await db.execute(
         text(f"UPDATE users SET {set_clause} WHERE id = :user_id"),
         {**update_fields, "user_id": user_id},
@@ -522,7 +523,7 @@ async def add_bids(
         try:
             print("calling generate transcript")
             trans_path, metadata_path, ins_csv, del_csv = generate_transcript(
-                input_filename, bid_pdf_path
+                input_filename, bid_pdf_path,user.id
             )
             # Store a dictionary (not JSONB) in the errors field
             new_transcript = Transcript(
@@ -717,12 +718,100 @@ async def uploaded_file(filename: str):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(str(file_path))
 
-@app.get("/document/{doc_type}/{filename}", name="document")
-async def document_file(doc_type: str, filename: str):
-    # Determine the directory based on doc_type. Here we assume transcripts and metadata are in OUTPUT_FOLDER.
-    if doc_type not in ["transcript", "metadata"]:
-        raise HTTPException(status_code=400, detail="Invalid document type")
-    file_path = OUTPUT_FOLDER / filename
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(str(file_path))
+# @app.get("/document/{doc_type}/{filename}", name="document")
+# async def document_file(doc_type: str, filename: str):
+#     # Determine the directory based on doc_type. Here we assume transcripts and metadata are in OUTPUT_FOLDER.
+#     if doc_type not in ["transcript", "metadata"]:
+#         raise HTTPException(status_code=400, detail="Invalid document type")
+#     file_path = OUTPUT_FOLDER / filename
+#     if not file_path.exists():
+#         raise HTTPException(status_code=404, detail="File not found")
+#     return FileResponse(str(file_path))
+
+
+@app.get("/metadata/{pdf_id}", name="metadata", response_class=HTMLResponse)
+async def metadata(request: Request, pdf_id: int, db: AsyncSession = Depends(get_db)):
+    # Fetch the metadata content (assumed stored in MetaFiles.file_path column as text)
+    meta_result = await db.execute(
+        text("SELECT file_path FROM MetaFiles WHERE pdf_id = :pdf_id"),
+        {"pdf_id": pdf_id},
+    )
+    meta_files= meta_result.fetchone()
+    if not meta_files:
+        raise HTTPException(status_code=404, detail="Metadata not found")
+    meta_file_path = Path(meta_files.file_path)
+    if not meta_file_path.exists():
+        raise HTTPException(status_code=404, detail="Metadata file not found")
+    # Parse the metadata file content
+    meta_row = parse_metadata_file(meta_file_path)
+    if not meta_row:
+        raise HTTPException(status_code=404, detail="Metadata not found")
+    
+    # Also fetch the original PDF record to get a bidder name (file_name)
+    pdf_result = await db.execute(
+        text("SELECT file_name FROM PdfFiles WHERE id = :pdf_id"),
+        {"pdf_id": pdf_id},
+    )
+    pdf = pdf_result.fetchone()
+    bid_name = pdf.file_name if pdf else "Unknown Bid"
+    print(meta_row)
+    return templates.TemplateResponse(
+        "metadata.html",
+        {"request": request, "metadata": meta_row, "bid_name": bid_name},
+    )
+
+@app.get("/transcript/{pdf_id}", response_class=HTMLResponse)
+async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depends(get_db)):
+    # Fetch the transcript record to get the generated PDF filename (assumed stored in Transcripts.file_path)
+    trans_result = await db.execute(
+        text("SELECT file_path FROM Transcripts WHERE pdf_id = :pdf_id"),
+        {"pdf_id": pdf_id},
+    )
+    transcript_file = trans_result.scalar()
+    if not transcript_file:
+        raise HTTPException(status_code=404, detail="Transcript not found")
+    
+    # Fetch the PDF record in order to determine tender and user details as well as the original PDF filename
+    pdf_result = await db.execute(
+        text("SELECT tender_id, user_id, file_name, file_path FROM PdfFiles WHERE id = :pdf_id"),
+        {"pdf_id": pdf_id},
+    )
+    pdf = pdf_result.fetchone()
+    if not pdf:
+        raise HTTPException(status_code=404, detail="Bid not found")
+    tender_id = pdf.tender_id
+    user_id = pdf.user_id
+    bid_name = pdf.file_name
+
+    # Fetch the stored CSV contents (full CSV texts that were stored during transcript generation)
+    ins_result = await db.execute(
+        text("SELECT row_data FROM InsertionCsv WHERE tender_id = :tender_id AND user_id = :user_id"),
+        {"tender_id": tender_id, "user_id": user_id},
+    )
+    insertion_rows = ins_result.fetchall()
+    # Join all rows into one multi‐line string. (Template can split into lines if needed.)
+    insertions_text = "\n".join(row.row_data for row in insertion_rows) if insertion_rows else ""
+    
+    del_result = await db.execute(
+        text("SELECT row_data FROM DeletionCsv WHERE tender_id = :tender_id AND user_id = :user_id"),
+        {"tender_id": tender_id, "user_id": user_id},
+    )
+    deletion_rows = del_result.fetchall()
+    deletions_text = "\n".join(row.row_data for row in deletion_rows) if deletion_rows else ""
+
+    # Determine the URLs for the original and generated PDF files.
+    # Here we assume that the PDF file paths stored in PdfFiles and Transcripts reflect the file name only.
+    original_pdf_url = f"/uploaded/{os.path.basename(pdf.file_path)}"
+    generated_pdf_url = f"/document/transcript/{os.path.basename(transcript_file)}"
+
+    return templates.TemplateResponse(
+        "transcript.html",
+        {
+            "request": request,
+            "bid_name": bid_name,
+            "insertions": insertions_text.splitlines(),  # pass as a list of lines
+            "deletions": deletions_text.splitlines(),
+            "original_pdf_url": original_pdf_url,
+            "generated_pdf_url": generated_pdf_url,
+        },
+    )

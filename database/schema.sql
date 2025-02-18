@@ -25,7 +25,7 @@ CREATE TABLE Tenders (
     FOREIGN KEY (user_id) REFERENCES Users (id) ON DELETE CASCADE
 );
 -- INSERT
-INSERT INTO Tenders (user_id, name, valid_until) VALUES (1, 'Tender 1', '2021-12-31 23:59:59');
+-- INSERT INTO Tenders (user_id, name, valid_until) VALUES (1, 'Tender 1', '2021-12-31 23:59:59');
 
 -- PDF files table
 CREATE TABLE PdfFiles (
@@ -63,26 +63,15 @@ CREATE TABLE MetaFiles (
     FOREIGN KEY (pdf_id) REFERENCES PdfFiles (id) ON DELETE CASCADE
 );
 
---insertion csv table
-CREATE TABLE InsertionCsv (
+-- CSV errors table
+CREATE TABLE CsvErrors (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     tender_id INT NOT NULL,
     user_id INT NOT NULL,
-    row_data TEXT NOT NULL,   -- Content of one CSV row
-    decision INTEGER NOT NULL DEFAULT 0,  -- Decision value: 0, 1, or 2
+    row_data TEXT NOT NULL,               -- Content from CSV
+    error_type TEXT NOT NULL CHECK(error_type IN ('insertion', 'deletion')),
+    decision INTEGER NOT NULL DEFAULT 0,    -- Decision value: 0, 1, or 2
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (tender_id) REFERENCES Tenders (id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES Users (id) ON DELETE CASCADE
-);
-
---deletion csv table
-CREATE TABLE DeletionCsv (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    tender_id INT NOT NULL,
-    user_id INT NOT NULL,
-    row_data TEXT NOT NULL,   -- Content of one CSV row
-    decision INTEGER NOT NULL DEFAULT 0,  -- Decision value: 0, 1, or 2
-    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (tender_id) REFERENCES Tenders (id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES Users (id) ON DELETE CASCADE
+    FOREIGN KEY (tender_id) REFERENCES Tenders(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
 );
