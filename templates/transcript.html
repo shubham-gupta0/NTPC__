@@ -2,61 +2,47 @@
 {% block title %}Transcript for {{ bid_name }}{% endblock %}
 {% block head_styles %}
 <style>
-  /* Ensure full utilization of width */
   .container-fluid {
     max-width: 98%;
   }
-
-  /* PDF iframe occupies full width and proper height */
+  /* PDF iframe occupies full width and 90% of viewport height */
   .pdf-iframe {
     width: 100%;
-    height: 95vh;
+    height: 90vh;
     border: none;
   }
-
-  /* Responsive table with better width */
   .table-responsive {
     max-height: 60vh;
     overflow-y: auto;
   }
-
-  /* Decision button styles - laid out horizontally */
+  /* Decision buttons: horizontal layout with small margin */
   .btn-decision {
+    background: none;
+    border: none;
     font-size: 1.3rem;
     padding: 6px 12px;
     border-radius: 5px;
     cursor: pointer;
-    transition: background 0.2s ease-in-out;
-    border: none;
-    background-color: transparent;
+    margin: 0 3px;
   }
-  
-  /* Styling for accept, reject, and ignore buttons */
   .btn-decision:hover {
     background: #f0f0f0;
   }
-
-  /* Decision container to align buttons properly */
+  /* Container for decisions: force inline layout */
   .decision-container {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 10px; /* Adds space between buttons */
+    gap: 10px;
     white-space: nowrap;
   }
-
-  /* Ensure tables use full width */
   .decision-table {
     width: 100%;
   }
-
-  /* Adjust column sizes to distribute space properly */
   .col-custom {
-    padding-left: 8px;
-    padding-right: 8px;
+    padding-left: 3px;
+    padding-right: 3px;
   }
-
-  /* Make sure the layout adjusts well for different screen sizes */
   @media (max-width: 992px) {
     .col-md-3, .col-md-6 {
       flex: 0 0 100%;
@@ -66,14 +52,15 @@
       height: 80vh;
     }
   }
+  /* Highlight selected button */
+  .selected {
+    background: #d1e7dd;
+  }
 </style>
 {% endblock %}
-
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid" id="decisionContainer" data-pdf-id="{{ request.path.split('/')[-1] }}">
   <h1 class="text-center my-3">Transcript for {{ bid_name }}</h1>
-
-  <!-- Bootstrap Grid Layout for better space utilization -->
   <div class="row">
     <!-- Left Column (Insertions) -->
     <div class="col-lg-3 col-md-4 col-sm-12 col-custom">
@@ -84,17 +71,18 @@
           <thead class="table-success">
             <tr>
               <th>Text</th>
-              <th>Action</th>
+              <th>Decision</th>
             </tr>
           </thead>
           <tbody>
             {% for insertion in insertions %}
-            <tr data-id="ins-{{ loop.index }}">
-              <td>{{ insertion }}</td>
+            <!-- Each row stores its decision value (default 0) and an identifier (replace with actual error ID if available) -->
+            <tr data-id="{{ insertion.id }}" data-decision="{{ insertion.decision or 0 }}">
+              <td>{{ insertion.row_data }}</td>
               <td class="decision-container">
-                <button class="btn-decision" onclick="handleDecision('accept', 'ins-{{ loop.index }}')" title="Accept">&#x2714;</button>
-                <button class="btn-decision" onclick="handleDecision('reject', 'ins-{{ loop.index }}')" title="Reject">&#x2718;</button>
-                <button class="btn-decision" onclick="handleDecision('ignore', 'ins-{{ loop.index }}')" title="Ignore">&#x2753;</button>
+                <button class="btn-decision" onclick="setDecision('{{ insertion.id }}', 1, this)" title="Accept">&#x2714;</button>
+                <button class="btn-decision" onclick="setDecision('{{ insertion.id }}', 2, this)" title="Reject">&#x2718;</button>
+                <button class="btn-decision" onclick="setDecision('{{ insertion.id }}', 0, this)" title="Ignore">&#x2753;</button>
               </td>
             </tr>
             {% endfor %}
@@ -105,7 +93,6 @@
       <p class="text-center">No insertions available.</p>
       {% endif %}
     </div>
-
     <!-- Middle Column (PDF Viewer) -->
     <div class="col-lg-6 col-md-8 col-sm-12 col-custom">
       <h3 class="text-center">Transcript PDF</h3>
@@ -115,7 +102,6 @@
       <p class="text-center text-danger">Transcript PDF not available.</p>
       {% endif %}
     </div>
-
     <!-- Right Column (Deletions) -->
     <div class="col-lg-3 col-md-4 col-sm-12 col-custom">
       <h3 class="text-center">Deletions</h3>
@@ -125,17 +111,17 @@
           <thead class="table-danger">
             <tr>
               <th>Text</th>
-              <th>Action</th>
+              <th>Decision</th>
             </tr>
           </thead>
           <tbody>
             {% for deletion in deletions %}
-            <tr data-id="del-{{ loop.index }}">
-              <td>{{ deletion }}</td>
+            <tr data-id="del-{{ deletion.id }}" data-decision="0">
+              <td>{{ deletion.row_data }}</td>
               <td class="decision-container">
-                <button class="btn-decision" onclick="handleDecision('accept', 'del-{{ loop.index }}')" title="Accept">&#x2714;</button>
-                <button class="btn-decision" onclick="handleDecision('reject', 'del-{{ loop.index }}')" title="Reject">&#x2718;</button>
-                <button class="btn-decision" onclick="handleDecision('ignore', 'del-{{ loop.index }}')" title="Ignore">&#x2753;</button>
+                <button class="btn-decision" onclick="setDecision('del-{{ deletion.id }}', 1, this)" title="Accept">&#x2714;</button>
+                <button class="btn-decision" onclick="setDecision('del-{{ deletion.id }}', 2, this)" title="Reject">&#x2718;</button>
+                <button class="btn-decision" onclick="setDecision('del-{{ deletion.id }}', 0, this)" title="Ignore">&#x2753;</button>
               </td>
             </tr>
             {% endfor %}
@@ -147,34 +133,89 @@
       {% endif %}
     </div>
   </div>
+  <!-- Submit button to update transcript status (and decisions) -->
+  <div class="row mt-3">
+    <div class="col-12 text-center">
+      <button class="btn btn-primary" onclick="submitDecisions()">Submit Decisions</button>
+    </div>
+  </div>
 </div>
-
 <script>
-  function handleDecision(action, id) {
-    if (!confirm(`Are you sure you want to ${action} change ${id}?`)) {
-      return;
+  // Update decision for the given row id (which is now the actual CsvErrors.id)
+  function setDecision(rowId, decisionValue, btnElement) {
+    // Find the row element by data-id (which is now a number)
+    const row = document.querySelector(`tr[data-id="${rowId}"]`);
+    if (!row) return;
+    row.setAttribute('data-decision', decisionValue);
+    const buttons = row.querySelectorAll('.btn-decision');
+    buttons.forEach(btn => btn.classList.remove('selected'));
+    if (decisionValue !== 0) {
+      btnElement.classList.add('selected');
     }
-    fetch(`/decision/${id}`, {
+    // Immediately update decision in the DB
+    updateDecisionInDB(rowId, decisionValue);
+  }
+  
+  function updateDecisionInDB(rowId, decisionValue) {
+    const pdfId = window.location.pathname.split("/").pop();
+    const payload = {
+      pdf_id: pdfId,  // optional; not used in update now
+      row_id: rowId,
+      decision: decisionValue
+    };
+    
+    fetch(`/update_decision`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: action })
+      body: JSON.stringify(payload)
+    })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error("Failed to update decision");
+        }
+        return response.json();
+      })
+      .then(data => console.log("Decision updated:", data))
+      .catch(error => {
+        console.error("Error updating decision:", error);
+        alert("An error occurred while updating the decision in the database.");
+      });
+  }
+  
+  // Optionally, the submitDecisions() function can be used to update transcript status 
+  // along with any batch updates if needed.
+  function submitDecisions() {
+    const pdfId = window.location.pathname.split("/").pop();
+    const rows = document.querySelectorAll('tr[data-id]');
+    const decisions = {};
+    rows.forEach(row => {
+      const id = row.getAttribute('data-id');
+      decisions[id] = row.getAttribute('data-decision');
+    });
+    
+    const payload = {
+      pdf_id: pdfId,
+      decisions: decisions,
+      transcript_status: 1    // Update transcript status to 1
+    };
+    
+    fetch(`/submit_decisions/${pdfId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
     })
     .then(response => {
       if (!response.ok) {
-        throw new Error("Network response was not ok");
+        throw new Error("Failed to update decisions");
       }
       return response.json();
     })
     .then(data => {
-      alert(`Decision '${action}' recorded for ${id}.`);
-      const row = document.querySelector(`tr[data-id="${id}"]`);
-      if (row) {
-        row.remove();
-      }
+      alert("Transcript updated successfully.");
     })
     .catch(error => {
       console.error("Error:", error);
-      alert("An error occurred while processing your decision.");
+      alert("An error occurred while updating transcript decisions.");
     });
   }
 </script>

@@ -801,18 +801,20 @@ async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depe
 
     # Fetch the stored CSV contents
     ins_result = await db.execute(
-        text("SELECT row_data FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'insertion'"),
-        {"tender_id": tender_id, "user_id": user_id},
-    )
-    insertion_rows = ins_result.fetchall()
-    insertions_text = "\n".join(row.row_data for row in insertion_rows) if insertion_rows else ""
+    text("SELECT id, row_data, decision FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'insertion'"),
+    {"tender_id": tender_id, "user_id": user_id},
+)
+    insertions = ins_result.fetchall()
+    # insertion_rows = ins_result.fetchall()
+    # insertions_text = "\n".join(row.row_data for row in insertion_rows) if insertion_rows else ""
     
     del_result = await db.execute(
-        text("SELECT row_data FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'deletion'"),
-        {"tender_id": tender_id, "user_id": user_id},
-    )
-    deletion_rows = del_result.fetchall()
-    deletions_text = "\n".join(row.row_data for row in deletion_rows) if deletion_rows else ""
+    text("SELECT id, row_data, decision FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'deletion'"),
+    {"tender_id": tender_id, "user_id": user_id},
+)
+    deletions = del_result.fetchall()
+    # deletion_rows = del_result.fetchall()
+    # deletions_text = "\n".join(row.row_data for row in deletion_rows) if deletion_rows else ""
 
     # Determine the URLs
     original_pdf_url = f"/uploaded/{os.path.basename(pdf.file_path)}"
@@ -824,9 +826,24 @@ async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depe
         {
             "request": request,
             "bid_name": bid_name,
-            "insertions": insertions_text.splitlines(),
-            "deletions": deletions_text.splitlines(),
+            "insertions": insertions,
+            "deletions": deletions,
             "original_pdf_url": original_pdf_url,
             "generated_pdf_url": generated_pdf_url,
         },
     )
+    
+@app.post("/update_decision")
+async def update_decision(payload: dict, db: AsyncSession = Depends(get_db)):
+    # Expect row_id to be the actual CsvErrors record primary key
+    row_id = payload.get("row_id")  
+    decision = int(payload.get("decision"))
+    
+    result = await db.execute(
+        text("UPDATE CsvErrors SET decision = :decision WHERE id = :row_id"),
+        {"decision": decision, "row_id": row_id}
+    )
+    await db.commit()
+    return JSONResponse(content={"message": "Decision updated successfully"})
+
+
