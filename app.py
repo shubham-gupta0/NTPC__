@@ -26,6 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from werkzeug.utils import secure_filename
 from config import *
+from csv_parser import parse_csv_file
 from utils.generate_transcript import generate_transcript
 from utils.generateStandardText import generate_standard
 import threading
@@ -122,6 +123,7 @@ async_session = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=
 # fastApi sertup
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/output", StaticFiles(directory=str(OUTPUT_FOLDER)), name="output")
 # Middleware for sessions
 app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 app.add_middleware(
@@ -540,46 +542,60 @@ async def add_bids(
             )
             db.add(new_meta)
             await db.commit()
-            # Insert each CSV row from the "insertions" list
-            # Process each CSV row from insertions
-            for row in ins_csv:
-                if isinstance(row, dict):
-                    row_data = row.get("row_data", "")
-                    decision_val = row.get("decision", 0)
+            # --- Process Insertions CSV ---
+            if isinstance(ins_csv, str):
+                ins_path = Path(ins_csv)
+                if ins_path.exists():
+                    insertions_list = parse_csv_file(ins_csv)
                 else:
-                    # Assume the row is the CSV text itself.
-                    row_data = row
-                    decision_val = 0
+                    insertions_list = [ins_csv]
+            elif isinstance(ins_csv, list):
+                insertions_list = ins_csv
+            else:
+                insertions_list = [str(ins_csv)]
+
+            for row in insertions_list:
+                row_data = row  # each row is a string from our parser
+                decision_val = 0
                 await db.execute(
                     text(
-                        "INSERT INTO InsertionCsv (tender_id, user_id, row_data, decision) "
-                        "VALUES (:tender_id, :user_id, :row_data, :decision)"
+                        "INSERT INTO CsvErrors (tender_id, user_id, row_data, error_type, decision) "
+                        "VALUES (:tender_id, :user_id, :row_data, :error_type, :decision)"
                     ),
                     {
                         "tender_id": tender_id,
                         "user_id": user.id,
                         "row_data": row_data,
+                        "error_type": "insertion",
                         "decision": decision_val,
                     },
                 )
-            
-            # Process each CSV row from deletions
-            for row in del_csv:
-                if isinstance(row, dict):
-                    row_data = row.get("row_data", "")
-                    decision_val = row.get("decision", 0)
+
+            # --- Process Deletions CSV ---
+            if isinstance(del_csv, str):
+                del_path = Path(del_csv)
+                if del_path.exists():
+                    deletion_list = parse_csv_file(del_csv)
                 else:
-                    row_data = row
-                    decision_val = 0
+                    deletion_list = [del_csv]
+            elif isinstance(del_csv, list):
+                deletion_list = del_csv
+            else:
+                deletion_list = [str(del_csv)]
+
+            for row in deletion_list:
+                row_data = row
+                decision_val = 0
                 await db.execute(
                     text(
-                        "INSERT INTO DeletionCsv (tender_id, user_id, row_data, decision) "
-                        "VALUES (:tender_id, :user_id, :row_data, :decision)"
+                        "INSERT INTO CsvErrors (tender_id, user_id, row_data, error_type, decision) "
+                        "VALUES (:tender_id, :user_id, :row_data, :error_type, :decision)"
                     ),
                     {
                         "tender_id": tender_id,
                         "user_id": user.id,
                         "row_data": row_data,
+                        "error_type": "deletion",
                         "decision": decision_val,
                     },
                 )
@@ -657,11 +673,11 @@ async def delete_bids(
     # Delete associated CSV rows – here we assume the CSV rows belong to this bid
     # (Note: In your schema, CSV tables store tender_id and user_id only.)
     await db.execute(
-        text("DELETE FROM InsertionCsv WHERE tender_id = :tender_id AND user_id = :user_id"),
+        text("DELETE FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'insertion'"),
         {"tender_id": pdf.tender_id, "user_id": user_id}
     )
     await db.execute(
-        text("DELETE FROM DeletionCsv WHERE tender_id = :tender_id AND user_id = :user_id"),
+        text("DELETE FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'deletion'"),
         {"tender_id": pdf.tender_id, "user_id": user_id}
     )
     await db.commit()
@@ -771,7 +787,7 @@ async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depe
     if not transcript_file:
         raise HTTPException(status_code=404, detail="Transcript not found")
     
-    # Fetch the PDF record in order to determine tender and user details as well as the original PDF filename
+    # Fetch the PDF record for tender and user details
     pdf_result = await db.execute(
         text("SELECT tender_id, user_id, file_name, file_path FROM PdfFiles WHERE id = :pdf_id"),
         {"pdf_id": pdf_id},
@@ -783,33 +799,32 @@ async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depe
     user_id = pdf.user_id
     bid_name = pdf.file_name
 
-    # Fetch the stored CSV contents (full CSV texts that were stored during transcript generation)
+    # Fetch the stored CSV contents
     ins_result = await db.execute(
-        text("SELECT row_data FROM InsertionCsv WHERE tender_id = :tender_id AND user_id = :user_id"),
+        text("SELECT row_data FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'insertion'"),
         {"tender_id": tender_id, "user_id": user_id},
     )
     insertion_rows = ins_result.fetchall()
-    # Join all rows into one multi‐line string. (Template can split into lines if needed.)
     insertions_text = "\n".join(row.row_data for row in insertion_rows) if insertion_rows else ""
     
     del_result = await db.execute(
-        text("SELECT row_data FROM DeletionCsv WHERE tender_id = :tender_id AND user_id = :user_id"),
+        text("SELECT row_data FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'deletion'"),
         {"tender_id": tender_id, "user_id": user_id},
     )
     deletion_rows = del_result.fetchall()
     deletions_text = "\n".join(row.row_data for row in deletion_rows) if deletion_rows else ""
 
-    # Determine the URLs for the original and generated PDF files.
-    # Here we assume that the PDF file paths stored in PdfFiles and Transcripts reflect the file name only.
+    # Determine the URLs
     original_pdf_url = f"/uploaded/{os.path.basename(pdf.file_path)}"
-    generated_pdf_url = f"/document/transcript/{os.path.basename(transcript_file)}"
+    # Use the /output route for transcript PDFs
+    generated_pdf_url = f"/output/{os.path.basename(transcript_file)}"  
 
     return templates.TemplateResponse(
         "transcript.html",
         {
             "request": request,
             "bid_name": bid_name,
-            "insertions": insertions_text.splitlines(),  # pass as a list of lines
+            "insertions": insertions_text.splitlines(),
             "deletions": deletions_text.splitlines(),
             "original_pdf_url": original_pdf_url,
             "generated_pdf_url": generated_pdf_url,

@@ -21,9 +21,7 @@
         </td>
         <td>
           {% if bid.transcript %}
-          <a href="#" class="btn btn-primary" data-toggle="modal" data-target="#transcriptModal"
-             data-bidname="{{ bid.name }}"
-             data-transcript-url="{{ url_for('view_transcript', pdf_id=bid.id) }}">
+          <a href="{{ url_for('view_transcript', pdf_id=bid.id) }}" class="btn btn-primary">
             View Transcript
           </a>
           {% else %}
@@ -71,8 +69,6 @@
     </div>
   </div>
 </div>
-{% endblock content %}
-{% block scripts %} 
   {{ super() }}
   <script>
     $("#transcriptModal").on("show.bs.modal", function (event) {
@@ -105,4 +101,4 @@
       $(this).find("#downloadTranscript").attr("href", "#");
     });
   </script>
-{% endblock scripts %}
+{% endblock%}
