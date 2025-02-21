@@ -36,8 +36,6 @@ from passlib.context import CryptContext
 from fastapi.staticfiles import StaticFiles
 
 
-
-
 # CHANGE THE DATABASE URL
 DATABASE_URL = "sqlite+aiosqlite:///database/app.db"
 engine = create_async_engine(DATABASE_URL, echo=True)
@@ -61,7 +59,7 @@ class User(Base):
 class Tender(Base):
     __tablename__ = "tenders"
 
-    id = Column(Integer, primary_key=True, autoincrement=True,nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
     user_id = Column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -163,9 +161,26 @@ async def on_shutdown():
     await engine.dispose()
 
 
+# Middle ware dependencies for session
+async def is_logged_in(request: Request):
+    # raise exception if user is not logged in
+    if not request.session.get("logged_in"):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return request.session.get("logged_in")
+
+
+async def is_admin(request: Request):
+    # raise exception if user is not admin
+    if not request.session.get("admin"):
+        raise HTTPException(status_code=401, detail="Unauthorized access Admin only")
+    return request.session.get("admin")
+
+
 # Routes
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
+    if request.session.get("logged_in"):
+        return RedirectResponse(url="/dashboard", status_code=302)
     return RedirectResponse(url="/login", status_code=302)
 
 
@@ -200,7 +215,7 @@ async def login(
             request.session["logged_in"] = True
             request.session["userid"] = 0
             return RedirectResponse(url="/dashboard", status_code=302)
-    
+
         raise HTTPException(status_code=400, detail="No user found with that username")
 
     # Check if the password is correct with the hashed password
@@ -227,7 +242,7 @@ async def logout(request: Request):
 
 
 # Add user
-@app.post("/add_user")
+@app.post("/add_user", dependencies=[Depends(is_admin), Depends(is_logged_in)])
 async def add_user(
     request: Request,
     username: str = Form(...),
@@ -235,25 +250,14 @@ async def add_user(
     email: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
-    is_admin = request.session.get("admin") == 1  # 1 = admin, 0 = user
-
-    # Protect admin routes
-    if not is_admin:
-        raise HTTPException(status_code=403, detail="Only admins can access this route")
-
-    # Check for duplicate users
-    print(username, password, email)
-
     existing_user = await db.execute(
         text("SELECT * FROM users WHERE username = :username OR email = :email"),
         {"username": username, "email": email},
     )
-    print(existing_user)
     if existing_user.fetchone():
         raise HTTPException(status_code=400, detail="User already exists")
     # Hash the password
     hashed_password = pwd_context.hash(password)
-    print(hashed_password)
     # Add the new user
     await db.execute(
         text(
@@ -281,6 +285,7 @@ async def add_user(
 @app.get(
     "/all_users",
     response_class=HTMLResponse,
+    dependencies=[Depends(is_admin), Depends(is_logged_in)],
 )
 async def all_users(request: Request, db: AsyncSession = Depends(get_db)):
     is_admin = request.session.get("admin") == 1  # 1 = admin, 0 = user
@@ -298,7 +303,11 @@ async def all_users(request: Request, db: AsyncSession = Depends(get_db)):
     )
 
 
-@app.post("/update_user", response_class=JSONResponse)
+@app.post(
+    "/update_user",
+    response_class=JSONResponse,
+    dependencies=[Depends(is_admin), Depends(is_logged_in)],
+)
 async def update_user(
     request: Request,
     user_id: int = Form(...),
@@ -358,11 +367,10 @@ async def update_user(
 """    DASHBOARD PAGE        """
 
 
-@app.get("/dashboard", response_class=HTMLResponse)
+@app.get(
+    "/dashboard", response_class=HTMLResponse, dependencies=[Depends(is_logged_in)]
+)
 async def dashboard(request: Request):
-    print(request.session)
-    if not request.session.get("logged_in"):
-        return RedirectResponse(url="/login", status_code=302)
     # if user is admin then show admin dashboard
     if request.session.get("admin"):
         return templates.TemplateResponse("admin_dashboard.html", {"request": request})
@@ -371,11 +379,8 @@ async def dashboard(request: Request):
         return templates.TemplateResponse("dashboard.html", {"request": request})
 
 
-@app.get("/EMD_BG", response_class=HTMLResponse)
+@app.get("/EMD_BG", response_class=HTMLResponse, dependencies=[Depends(is_logged_in)])
 async def doc1(request: Request):
-    # Check if the user is already logged in
-    if not request.session.get("logged_in"):
-        return RedirectResponse(url="/login", status_code=302)
 
     return templates.TemplateResponse("EMD_dashboard.html", {"request": request})
 
@@ -383,14 +388,14 @@ async def doc1(request: Request):
 """ Tender LOGIC TO ADD, VIEW AND DELETE TENDER """
 
 
-@app.get("/tender", response_class=HTMLResponse)
+@app.get("/tender", response_class=HTMLResponse,dependencies=[Depends(is_logged_in)])
 async def create_task_page(request: Request):
     if not request.session.get("logged_in"):
         return RedirectResponse(url="/login", status_code=302)
     return templates.TemplateResponse("create_tender.html", {"request": request})
 
 
-@app.post("/tender")
+@app.post("/tender",dependencies=[Depends(is_logged_in)])
 async def create_task_tender(
     request: Request,
     tender_ref: str = Form(...),
@@ -436,7 +441,7 @@ async def create_task_tender(
     return RedirectResponse(url=f"/add_bids/{new_tender.id}", status_code=302)
 
 
-@app.get("/add_bids/{tender_id}", response_class=HTMLResponse)
+@app.get("/add_bids/{tender_id}", response_class=HTMLResponse,dependencies=[Depends(is_logged_in)])
 async def add_bids_page(
     request: Request,
     tender_id: int,
@@ -450,12 +455,14 @@ async def add_bids_page(
     print(tender_id)
     if not request.session.get("logged_in"):
         return RedirectResponse(url="/login", status_code=302)
-    
+
     user_id = request.session.get("userid")
     # TODO: search for tender id for that particular user and if not found ask to create one
     # Fetch all bids (PDF files) for the tender and the current user
     bids_result = await db.execute(
-        text("SELECT * FROM pdffiles WHERE tender_id = :tender_id AND user_id = :user_id"),
+        text(
+            "SELECT * FROM pdffiles WHERE tender_id = :tender_id AND user_id = :user_id"
+        ),
         {"tender_id": tender_id, "user_id": user_id},
     )
     bids = bids_result.fetchall()
@@ -463,7 +470,9 @@ async def add_bids_page(
     return templates.TemplateResponse(
         "add_bids.html", {"request": request, "bids": bids, "tender_id": tender_id}
     )
-@app.post("/add_bids/{tender_id}")
+
+
+@app.post("/add_bids/{tender_id}",dependencies=[Depends(is_logged_in)])
 async def add_bids(
     request: Request,
     tender_id: int,
@@ -471,19 +480,18 @@ async def add_bids(
     bid_pdf: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
-    print("CALLING ADD BIDS")
     bid_pdf_path = UPLOAD_FOLDER / secure_filename(bid_pdf.filename)
     input_filename = os.path.splitext(bid_pdf.filename)[0]
-    
+
     # Reset file pointer after reading for size
     bid_pdf.file.seek(0)
-    
+
     # Read file content once
     content = await bid_pdf.read()
-    
+
     # Check file size (in MB)
     pdf_file_size = len(content) / (1024 * 1024)
-    
+
     user = await db.execute(
         text("SELECT * FROM users WHERE id = :user_id"),
         {"user_id": request.session.get("userid")},
@@ -510,7 +518,7 @@ async def add_bids(
     db.add(new_pdf)
     await db.commit()
     await db.refresh(new_pdf)
-    
+
     # Update the user's used storage
     new_used_storage = user.total_storage_used + pdf_file_size
     await db.execute(
@@ -520,19 +528,19 @@ async def add_bids(
         {"new_used_storage": new_used_storage, "user_id": user.id},
     )
     await db.commit()
-    
+
     async def process_transcript():
         try:
             print("calling generate transcript")
             trans_path, metadata_path, ins_csv, del_csv = generate_transcript(
-                input_filename, bid_pdf_path,user.id
+                input_filename, bid_pdf_path, user.id
             )
             # Store a dictionary (not JSONB) in the errors field
             new_transcript = Transcript(
                 pdf_id=new_pdf.id,
                 file_path=str(trans_path),
                 decision="0",  # or any string you prefer
-                errors={},      # store an empty dict or any valid dict
+                errors={},  # store an empty dict or any valid dict
             )
             db.add(new_transcript)
             await db.commit()
@@ -608,10 +616,11 @@ async def add_bids(
         await f.write(content)
     # Start the transcript generation in a separate thread
     threading.Thread(target=lambda: asyncio.run(process_transcript())).start()
-    
+
     return RedirectResponse(url=f"/add_bids/{tender_id}", status_code=302)
 
-@app.get("/view_bids/{pdf_id}", name="view_bids")
+
+@app.get("/view_bids/{pdf_id}", name="view_bids",dependencies=[Depends(is_logged_in)])
 async def view_bids(pdf_id: int, request: Request, db: AsyncSession = Depends(get_db)):
     user_id = request.session.get("userid")
     if not user_id:
@@ -629,7 +638,8 @@ async def view_bids(pdf_id: int, request: Request, db: AsyncSession = Depends(ge
         return FileResponse(str(file_path))
     raise HTTPException(status_code=404, detail="File not found")
 
-@app.post("/delete_bid/{pdf_id}", name="delete_bid")
+
+@app.post("/delete_bid/{pdf_id}", name="delete_bid",dependencies=[Depends(is_logged_in)])
 async def delete_bids(
     pdf_id: int,
     request: Request,
@@ -650,7 +660,7 @@ async def delete_bids(
     pdf = result.fetchone()
     if not pdf:
         raise HTTPException(status_code=404, detail="File not found")
-    
+
     # Delete the PDF file from the filesystem if it exists
     pdf_file_path = Path(pdf.file_path)
     if pdf_file_path.exists():
@@ -659,41 +669,44 @@ async def delete_bids(
     # Option 1: If your DB schema supports ON DELETE CASCADE and SQLite foreign keys are enabled,
     # simply deleting the PDF record may delete dependent rows.
     # However, if that's not working you can delete manually.
-    
+
     # Delete associated transcript records (and meta files)
     await db.execute(
-        text("DELETE FROM transcripts WHERE pdf_id = :pdf_id"),
-        {"pdf_id": pdf_id}
+        text("DELETE FROM transcripts WHERE pdf_id = :pdf_id"), {"pdf_id": pdf_id}
     )
     await db.execute(
-        text("DELETE FROM metafiles WHERE pdf_id = :pdf_id"),
-        {"pdf_id": pdf_id}
+        text("DELETE FROM metafiles WHERE pdf_id = :pdf_id"), {"pdf_id": pdf_id}
     )
-    
+
     # Delete associated CSV rows – here we assume the CSV rows belong to this bid
     # (Note: In your schema, CSV tables store tender_id and user_id only.)
     await db.execute(
-        text("DELETE FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'insertion'"),
-        {"tender_id": pdf.tender_id, "user_id": user_id}
+        text(
+            "DELETE FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'insertion'"
+        ),
+        {"tender_id": pdf.tender_id, "user_id": user_id},
     )
     await db.execute(
-        text("DELETE FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'deletion'"),
-        {"tender_id": pdf.tender_id, "user_id": user_id}
+        text(
+            "DELETE FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'deletion'"
+        ),
+        {"tender_id": pdf.tender_id, "user_id": user_id},
     )
     await db.commit()
-    
+
     # Finally, delete the PDF file record itself
     await db.execute(
-        text("DELETE FROM pdffiles WHERE id = :pdf_id"),
-        {"pdf_id": pdf_id}
+        text("DELETE FROM pdffiles WHERE id = :pdf_id"), {"pdf_id": pdf_id}
     )
     await db.commit()
-    
+
     return RedirectResponse(url=f"/add_bids/{pdf.tender_id}", status_code=302)
 
 
-@app.get("/bidder_details/{tender_id}", response_class=HTMLResponse)
-async def bidder_details_page(request: Request, tender_id: int, db: AsyncSession = Depends(get_db)):
+@app.get("/bidder_details/{tender_id}", response_class=HTMLResponse,dependencies=[Depends(is_logged_in)])
+async def bidder_details_page(
+    request: Request, tender_id: int, db: AsyncSession = Depends(get_db)
+):
     # Fetch all bids (PDF files) for the given tender
     result = await db.execute(
         text("SELECT * FROM pdffiles WHERE tender_id = :tender_id"),
@@ -708,14 +721,16 @@ async def bidder_details_page(request: Request, tender_id: int, db: AsyncSession
         input_filename = os.path.splitext(bid.file_name)[0]
         transcript_path = OUTPUT_FOLDER / f"comparison_result_{input_filename}.pdf"
         metadata_path = OUTPUT_FOLDER / f"metadata_{input_filename}.txt"
-        bids_list.append({
-            "id": bid.id,
-            "name": bid.file_name,  # Using file_name as bidder name; adjust if necessary
-            "file": bid.file_name,  # Used for linking to the PDF
-            "transcript": transcript_path.exists(),
-            "metadata": metadata_path.exists(),
-            "tender_id": bid.tender_id
-        })
+        bids_list.append(
+            {
+                "id": bid.id,
+                "name": bid.file_name,  # Using file_name as bidder name; adjust if necessary
+                "file": bid.file_name,  # Used for linking to the PDF
+                "transcript": transcript_path.exists(),
+                "metadata": metadata_path.exists(),
+                "tender_id": bid.tender_id,
+            }
+        )
 
     return templates.TemplateResponse(
         "bidder_details.html",
@@ -726,13 +741,15 @@ async def bidder_details_page(request: Request, tender_id: int, db: AsyncSession
             "route_name": "bidder_details",
         },
     )
-    
-@app.get("/uploaded/{filename}", name="uploaded_file")
+
+
+@app.get("/uploaded/{filename}", name="uploaded_file",dependencies=[Depends(is_logged_in)])
 async def uploaded_file(filename: str):
     file_path = UPLOAD_FOLDER / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(str(file_path))
+
 
 # @app.get("/document/{doc_type}/{filename}", name="document")
 # async def document_file(doc_type: str, filename: str):
@@ -745,14 +762,14 @@ async def uploaded_file(filename: str):
 #     return FileResponse(str(file_path))
 
 
-@app.get("/metadata/{pdf_id}", name="metadata", response_class=HTMLResponse)
+@app.get("/metadata/{pdf_id}", name="metadata", response_class=HTMLResponse,dependencies=[Depends(is_logged_in)])
 async def metadata(request: Request, pdf_id: int, db: AsyncSession = Depends(get_db)):
     # Fetch the metadata content (assumed stored in MetaFiles.file_path column as text)
     meta_result = await db.execute(
         text("SELECT file_path FROM MetaFiles WHERE pdf_id = :pdf_id"),
         {"pdf_id": pdf_id},
     )
-    meta_files= meta_result.fetchone()
+    meta_files = meta_result.fetchone()
     if not meta_files:
         raise HTTPException(status_code=404, detail="Metadata not found")
     meta_file_path = Path(meta_files.file_path)
@@ -762,7 +779,7 @@ async def metadata(request: Request, pdf_id: int, db: AsyncSession = Depends(get
     meta_row = parse_metadata_file(meta_file_path)
     if not meta_row:
         raise HTTPException(status_code=404, detail="Metadata not found")
-    
+
     # Also fetch the original PDF record to get a bidder name (file_name)
     pdf_result = await db.execute(
         text("SELECT file_name FROM PdfFiles WHERE id = :pdf_id"),
@@ -776,8 +793,11 @@ async def metadata(request: Request, pdf_id: int, db: AsyncSession = Depends(get
         {"request": request, "metadata": meta_row, "bid_name": bid_name},
     )
 
-@app.get("/transcript/{pdf_id}", response_class=HTMLResponse)
-async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depends(get_db)):
+
+@app.get("/transcript/{pdf_id}", response_class=HTMLResponse,dependencies=[Depends(is_logged_in)])
+async def view_transcript(
+    request: Request, pdf_id: int, db: AsyncSession = Depends(get_db)
+):
     # Fetch the transcript record to get the generated PDF filename (assumed stored in Transcripts.file_path)
     trans_result = await db.execute(
         text("SELECT file_path FROM Transcripts WHERE pdf_id = :pdf_id"),
@@ -786,10 +806,12 @@ async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depe
     transcript_file = trans_result.scalar()
     if not transcript_file:
         raise HTTPException(status_code=404, detail="Transcript not found")
-    
+
     # Fetch the PDF record for tender and user details
     pdf_result = await db.execute(
-        text("SELECT tender_id, user_id, file_name, file_path FROM PdfFiles WHERE id = :pdf_id"),
+        text(
+            "SELECT tender_id, user_id, file_name, file_path FROM PdfFiles WHERE id = :pdf_id"
+        ),
         {"pdf_id": pdf_id},
     )
     pdf = pdf_result.fetchone()
@@ -801,17 +823,21 @@ async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depe
 
     # Fetch the stored CSV contents
     ins_result = await db.execute(
-    text("SELECT id, row_data, decision FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'insertion'"),
-    {"tender_id": tender_id, "user_id": user_id},
-)
+        text(
+            "SELECT id, row_data, decision FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'insertion'"
+        ),
+        {"tender_id": tender_id, "user_id": user_id},
+    )
     insertions = ins_result.fetchall()
     # insertion_rows = ins_result.fetchall()
     # insertions_text = "\n".join(row.row_data for row in insertion_rows) if insertion_rows else ""
-    
+
     del_result = await db.execute(
-    text("SELECT id, row_data, decision FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'deletion'"),
-    {"tender_id": tender_id, "user_id": user_id},
-)
+        text(
+            "SELECT id, row_data, decision FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'deletion'"
+        ),
+        {"tender_id": tender_id, "user_id": user_id},
+    )
     deletions = del_result.fetchall()
     # deletion_rows = del_result.fetchall()
     # deletions_text = "\n".join(row.row_data for row in deletion_rows) if deletion_rows else ""
@@ -819,7 +845,7 @@ async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depe
     # Determine the URLs
     original_pdf_url = f"/uploaded/{os.path.basename(pdf.file_path)}"
     # Use the /output route for transcript PDFs
-    generated_pdf_url = f"/output/{os.path.basename(transcript_file)}"  
+    generated_pdf_url = f"/output/{os.path.basename(transcript_file)}"
 
     return templates.TemplateResponse(
         "transcript.html",
@@ -832,18 +858,17 @@ async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depe
             "generated_pdf_url": generated_pdf_url,
         },
     )
-    
-@app.post("/update_decision")
+
+
+@app.post("/update_decision",dependencies=[Depends(is_logged_in)])
 async def update_decision(payload: dict, db: AsyncSession = Depends(get_db)):
     # Expect row_id to be the actual CsvErrors record primary key
-    row_id = payload.get("row_id")  
+    row_id = payload.get("row_id")
     decision = int(payload.get("decision"))
-    
+
     result = await db.execute(
         text("UPDATE CsvErrors SET decision = :decision WHERE id = :row_id"),
-        {"decision": decision, "row_id": row_id}
+        {"decision": decision, "row_id": row_id},
     )
     await db.commit()
     return JSONResponse(content={"message": "Decision updated successfully"})
-
-
