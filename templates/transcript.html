@@ -1,63 +1,5 @@
 {% extends "layout.html" %}
 {% block title %}Transcript for {{ bid_name }}{% endblock %}
-{% block head_styles %}
-<style>
-  .container-fluid {
-    max-width: 98%;
-  }
-  /* PDF iframe occupies full width and 90% of viewport height */
-  .pdf-iframe {
-    width: 100%;
-    height: 90vh;
-    border: none;
-  }
-  .table-responsive {
-    max-height: 60vh;
-    overflow-y: auto;
-  }
-  /* Decision buttons: horizontal layout with small margin */
-  .btn-decision {
-    background: none;
-    border: none;
-    font-size: 1.3rem;
-    padding: 6px 12px;
-    border-radius: 5px;
-    cursor: pointer;
-    margin: 0 3px;
-  }
-  .btn-decision:hover {
-    background: #f0f0f0;
-  }
-  /* Container for decisions: force inline layout */
-  .decision-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    white-space: nowrap;
-  }
-  .decision-table {
-    width: 100%;
-  }
-  .col-custom {
-    padding-left: 3px;
-    padding-right: 3px;
-  }
-  @media (max-width: 992px) {
-    .col-md-3, .col-md-6 {
-      flex: 0 0 100%;
-      max-width: 100%;
-    }
-    .pdf-iframe {
-      height: 80vh;
-    }
-  }
-  /* Highlight selected button */
-  .selected {
-    background: #d1e7dd;
-  }
-</style>
-{% endblock %}
 {% block content %}
 <div class="container-fluid" id="decisionContainer" data-pdf-id="{{ request.path.split('/')[-1] }}">
   <h1 class="text-center my-3">Transcript for {{ bid_name }}</h1>
@@ -219,4 +161,60 @@
     });
   }
 </script>
+<style>
+  .container-fluid {
+    max-width: 98%;
+  }
+  /* PDF iframe occupies full width and 90% of viewport height */
+  .pdf-iframe {
+    width: 100%;
+    height: 90vh;
+    border: none;
+  }
+  .table-responsive {
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  /* Decision buttons: horizontal layout with small margin */
+  .btn-decision {
+    background: none;
+    border: none;
+    font-size: 1.3rem;
+    padding: 6px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 0 3px;
+  }
+  .btn-decision:hover {
+    background: #f0f0f0;
+  }
+  /* Container for decisions: force inline layout */
+  .decision-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+  }
+  .decision-table {
+    width: 100%;
+  }
+  .col-custom {
+    padding-left: 3px;
+    padding-right: 3px;
+  }
+  @media (max-width: 992px) {
+    .col-md-3, .col-md-6 {
+      flex: 0 0 100%;
+      max-width: 100%;
+    }
+    .pdf-iframe {
+      height: 80vh;
+    }
+  }
+  /* Highlight selected button */
+  .selected {
+    background: #d1e7dd;
+  }
+</style>
 {% endblock %}
