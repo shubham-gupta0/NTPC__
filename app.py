@@ -904,3 +904,15 @@ async def submit_decisions(pdf_id: int, payload: dict, db: AsyncSession = Depend
     await db.commit()
     return JSONResponse(content={"message": "Transcript locked and decisions submitted successfully."})
 
+@app.get("/my_tenders", response_class=HTMLResponse, dependencies=[Depends(is_logged_in)])
+async def my_tenders(request: Request, db: AsyncSession = Depends(get_db)):
+    user_id = request.session.get("userid")
+    result = await db.execute(
+        text("SELECT * FROM tenders WHERE user_id = :user_id ORDER BY id ASC"),
+        {"user_id": user_id},
+    )
+    tenders = result.fetchall()
+    return templates.TemplateResponse(
+        "view_tender.html",
+        {"request": request, "tenders": tenders}
+    )
