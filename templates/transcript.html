@@ -18,7 +18,7 @@
           </thead>
           <tbody>
             {% for insertion in insertions %}
-            <!-- Each row stores its decision value (default 0) and an identifier (replace with actual error ID if available) -->
+            <!-- Each row stores its decision value (default 0) and an identifier (use actual error ID) -->
             <tr data-id="{{ insertion.id }}" data-decision="{{ insertion.decision or 0 }}">
               <td>{{ insertion.row_data }}</td>
               <td class="decision-container">
@@ -78,14 +78,13 @@
   <!-- Submit button to update transcript status (and decisions) -->
   <div class="row mt-3">
     <div class="col-12 text-center">
-      <button class="btn btn-primary" onclick="submitDecisions()">Submit Decisions</button>
+      <button class="btn btn-primary" id="submitDecisionsBtn" onclick="submitDecisions()">Submit Decisions</button>
     </div>
   </div>
 </div>
 <script>
-  // Update decision for the given row id (which is now the actual CsvErrors.id)
+  // Update decision for the given row id
   function setDecision(rowId, decisionValue, btnElement) {
-    // Find the row element by data-id (which is now a number)
     const row = document.querySelector(`tr[data-id="${rowId}"]`);
     if (!row) return;
     row.setAttribute('data-decision', decisionValue);
@@ -100,9 +99,11 @@
   
   function updateDecisionInDB(rowId, decisionValue) {
     const pdfId = window.location.pathname.split("/").pop();
+    // Strip "del-" prefix if it exists to get the numeric ID
+    const id = rowId.startsWith('del-') ? rowId.slice(4) : rowId;
     const payload = {
-      pdf_id: pdfId,  // optional; not used in update now
-      row_id: rowId,
+      pdf_id: pdfId,
+      row_id: id,
       decision: decisionValue
     };
     
@@ -111,34 +112,36 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error("Failed to update decision");
-        }
-        return response.json();
-      })
-      .then(data => console.log("Decision updated:", data))
-      .catch(error => {
-        console.error("Error updating decision:", error);
-        alert("An error occurred while updating the decision in the database.");
-      });
+    .then(response => {
+      if (!response.ok) {
+        throw new Error("Failed to update decision");
+      }
+      return response.json();
+    })
+    .then(data => console.log("Decision updated:", data))
+    .catch(error => {
+      console.error("Error updating decision:", error);
+      alert("An error occurred while updating the decision in the database.");
+    });
   }
   
-  // Optionally, the submitDecisions() function can be used to update transcript status 
-  // along with any batch updates if needed.
   function submitDecisions() {
     const pdfId = window.location.pathname.split("/").pop();
     const rows = document.querySelectorAll('tr[data-id]');
     const decisions = {};
     rows.forEach(row => {
-      const id = row.getAttribute('data-id');
+      // If row ID contains a prefix (i.e., "del-"), remove it
+      let id = row.getAttribute('data-id');
+      if (id.startsWith('del-')) {
+        id = id.slice(4);
+      }
       decisions[id] = row.getAttribute('data-decision');
     });
     
     const payload = {
       pdf_id: pdfId,
       decisions: decisions,
-      transcript_status: 1    // Update transcript status to 1
+      transcript_status: 1 // Update transcript status to 1
     };
     
     fetch(`/submit_decisions/${pdfId}`, {
@@ -154,6 +157,10 @@
     })
     .then(data => {
       alert("Transcript updated successfully.");
+      // Disable all decision buttons to avoid further updates.
+      document.querySelectorAll('.btn-decision').forEach(btn => btn.disabled = true);
+      // Disable the Submit Decisions button.
+      document.getElementById('submitDecisionsBtn').disabled = true;
     })
     .catch(error => {
       console.error("Error:", error);
@@ -165,35 +172,31 @@
   .container-fluid {
     max-width: 98%;
   }
-  /* PDF iframe occupies full width and 90% of viewport height */
   .pdf-iframe {
     width: 100%;
     height: 90vh;
     border: none;
   }
   .table-responsive {
-    max-height: 60vh;
+    max-height: 100vh;
     overflow-y: auto;
   }
-  /* Decision buttons: horizontal layout with small margin */
   .btn-decision {
     background: none;
     border: none;
     font-size: 1.3rem;
-    padding: 6px 12px;
-    border-radius: 5px;
+    padding: 1px;
+    border-radius: 1px;
     cursor: pointer;
-    margin: 0 3px;
   }
   .btn-decision:hover {
     background: #f0f0f0;
   }
-  /* Container for decisions: force inline layout */
   .decision-container {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 10px;
+    gap: 5px;
     white-space: nowrap;
   }
   .decision-table {
@@ -212,9 +215,8 @@
       height: 80vh;
     }
   }
-  /* Highlight selected button */
   .selected {
-    background: #d1e7dd;
+    background: #91ffce;
   }
 </style>
 {% endblock %}

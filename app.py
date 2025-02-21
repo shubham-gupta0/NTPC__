@@ -794,24 +794,22 @@ async def metadata(request: Request, pdf_id: int, db: AsyncSession = Depends(get
     )
 
 
-@app.get("/transcript/{pdf_id}", response_class=HTMLResponse,dependencies=[Depends(is_logged_in)])
-async def view_transcript(
-    request: Request, pdf_id: int, db: AsyncSession = Depends(get_db)
-):
-    # Fetch the transcript record to get the generated PDF filename (assumed stored in Transcripts.file_path)
-    trans_result = await db.execute(
-        text("SELECT file_path FROM Transcripts WHERE pdf_id = :pdf_id"),
+@app.get("/transcript/{pdf_id}", response_class=HTMLResponse, dependencies=[Depends(is_logged_in)])
+async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depends(get_db)):
+    # Fetch the transcript record (file_path and status)
+    transcript_result = await db.execute(
+        text("SELECT file_path, status FROM Transcripts WHERE pdf_id = :pdf_id"),
         {"pdf_id": pdf_id},
     )
-    transcript_file = trans_result.scalar()
-    if not transcript_file:
+    transcript_data = transcript_result.fetchone()
+    if not transcript_data:
         raise HTTPException(status_code=404, detail="Transcript not found")
+    transcript_file = transcript_data.file_path
+    transcript_status = transcript_data.status
 
     # Fetch the PDF record for tender and user details
     pdf_result = await db.execute(
-        text(
-            "SELECT tender_id, user_id, file_name, file_path FROM PdfFiles WHERE id = :pdf_id"
-        ),
+        text("SELECT tender_id, user_id, file_name, file_path FROM PdfFiles WHERE id = :pdf_id"),
         {"pdf_id": pdf_id},
     )
     pdf = pdf_result.fetchone()
@@ -824,29 +822,40 @@ async def view_transcript(
     # Fetch the stored CSV contents
     ins_result = await db.execute(
         text(
-            "SELECT id, row_data, decision FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'insertion'"
+            "SELECT id, row_data, decision FROM CsvErrors WHERE tender_id = :tender_id "
+            "AND user_id = :user_id AND error_type = 'insertion'"
         ),
         {"tender_id": tender_id, "user_id": user_id},
     )
     insertions = ins_result.fetchall()
-    # insertion_rows = ins_result.fetchall()
-    # insertions_text = "\n".join(row.row_data for row in insertion_rows) if insertion_rows else ""
 
     del_result = await db.execute(
         text(
-            "SELECT id, row_data, decision FROM CsvErrors WHERE tender_id = :tender_id AND user_id = :user_id AND error_type = 'deletion'"
+            "SELECT id, row_data, decision FROM CsvErrors WHERE tender_id = :tender_id "
+            "AND user_id = :user_id AND error_type = 'deletion'"
         ),
         {"tender_id": tender_id, "user_id": user_id},
     )
     deletions = del_result.fetchall()
-    # deletion_rows = del_result.fetchall()
-    # deletions_text = "\n".join(row.row_data for row in deletion_rows) if deletion_rows else ""
 
-    # Determine the URLs
+    # Determine the URLs for PDF files
     original_pdf_url = f"/uploaded/{os.path.basename(pdf.file_path)}"
-    # Use the /output route for transcript PDFs
     generated_pdf_url = f"/output/{os.path.basename(transcript_file)}"
 
+    # Render the locked template if decisions are locked (status == 1)
+    if transcript_status == 1:
+        return templates.TemplateResponse(
+            "locked_transcript.html",
+            {
+                "request": request,
+                "bid_name": bid_name,
+                "insertions": insertions,
+                "deletions": deletions,
+                "original_pdf_url": original_pdf_url,
+                "generated_pdf_url": generated_pdf_url,
+            },
+        )
+    # Else, render the editable transcript template
     return templates.TemplateResponse(
         "transcript.html",
         {
@@ -859,16 +868,39 @@ async def view_transcript(
         },
     )
 
-
-@app.post("/update_decision",dependencies=[Depends(is_logged_in)])
+@app.post("/update_decision", dependencies=[Depends(is_logged_in)])
 async def update_decision(payload: dict, db: AsyncSession = Depends(get_db)):
-    # Expect row_id to be the actual CsvErrors record primary key
+    pdf_id = payload.get("pdf_id")
     row_id = payload.get("row_id")
     decision = int(payload.get("decision"))
 
-    result = await db.execute(
+    # Check if the transcript is locked
+    if pdf_id:
+        transcript_status = await db.execute(
+            text("SELECT status FROM Transcripts WHERE pdf_id = :pdf_id"),
+            {"pdf_id": pdf_id},
+        )
+        transcript_status = transcript_status.scalar()
+        if transcript_status == 1:
+            return JSONResponse(
+                status_code=400,
+                content={"message": "Decisions have been locked for this transcript."},
+            )
+
+    await db.execute(
         text("UPDATE CsvErrors SET decision = :decision WHERE id = :row_id"),
         {"decision": decision, "row_id": row_id},
     )
     await db.commit()
     return JSONResponse(content={"message": "Decision updated successfully"})
+
+@app.post("/submit_decisions/{pdf_id}", dependencies=[Depends(is_logged_in)])
+async def submit_decisions(pdf_id: int, payload: dict, db: AsyncSession = Depends(get_db)):
+    # Update the transcript status to 1, which means decisions are now locked.
+    await db.execute(
+        text("UPDATE Transcripts SET status = 1 WHERE pdf_id = :pdf_id"),
+        {"pdf_id": pdf_id},
+    )
+    await db.commit()
+    return JSONResponse(content={"message": "Transcript locked and decisions submitted successfully."})
+

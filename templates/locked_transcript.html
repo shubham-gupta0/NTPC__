@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+{% block title %}Transcript View for {{ bid_name }}{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <h1 class="text-center my-3">Transcript for {{ bid_name }}</h1>
+  <div class="row">
+    <!-- Left Column (Insertions) -->
+    <div class="col-lg-3 col-md-4 col-sm-12 col-custom">
+      <h3 class="text-center">Insertions</h3>
+      {% if insertions %}
+      <div class="table-responsive">
+        <table class="table table-striped table-bordered decision-table">
+          <thead class="table-success">
+            <tr>
+              <th>Text</th>
+              <th>Decision</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for insertion in insertions %}
+            <tr>
+              <td>{{ insertion.row_data }}</td>
+              <td>
+                {% if insertion.decision == 1 %}
+                  Accepted
+                {% elif insertion.decision == 2 %}
+                  Rejected
+                {% else %}
+                  Ignored
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-center">No insertions available.</p>
+      {% endif %}
+    </div>
+    <!-- Middle Column (PDF Viewer) -->
+    <div class="col-lg-6 col-md-8 col-sm-12 col-custom">
+      <h3 class="text-center">Transcript PDF</h3>
+      {% if generated_pdf_url %}
+      <iframe src="{{ generated_pdf_url }}" class="pdf-iframe" title="Transcript PDF"></iframe>
+      {% else %}
+      <p class="text-center text-danger">Transcript PDF not available.</p>
+      {% endif %}
+    </div>
+    <!-- Right Column (Deletions) -->
+    <div class="col-lg-3 col-md-4 col-sm-12 col-custom">
+      <h3 class="text-center">Deletions</h3>
+      {% if deletions %}
+      <div class="table-responsive">
+        <table class="table table-striped table-bordered decision-table">
+          <thead class="table-danger">
+            <tr>
+              <th>Text</th>
+              <th>Decision</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for deletion in deletions %}
+            <tr>
+              <td>{{ deletion.row_data }}</td>
+              <td>
+                {% if deletion.decision == 1 %}
+                  Accepted
+                {% elif deletion.decision == 2 %}
+                  Rejected
+                {% else %}
+                  Ignored
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-center">No deletions available.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<style>
+  .container-fluid {
+    max-width: 98%;
+  }
+  .pdf-iframe {
+    width: 100%;
+    height: 90vh;
+    border: none;
+  }
+  .table-responsive {
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+  .decision-table {
+    width: 100%;
+  }
+  .col-custom {
+    padding-left: 3px;
+    padding-right: 3px;
+  }
+  @media (max-width: 992px) {
+    .col-md-3, .col-md-6 {
+      flex: 0 0 100%;
+      max-width: 100%;
+    }
+    .pdf-iframe {
+      height: 80vh;
+    }
+  }
+</style>
+{% endblock %}
