@@ -50,32 +50,6 @@
                     </div>
                 </div>
             </div>
-            <!-- Clear Storage Card -->
-            <!-- <div class="col-md-4 mb-4">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title">Clear Storage</h5>
-                        <p class="card-text">
-                            Manage and clear user storage allocations.
-                        </p>
-                        <button class="btn btn-warning mt-auto" onclick="window.location.href='/clear_storage'">
-                            Clear Storage
-                        </button>
-                    </div>
-                </div>
-            </div> -->
-            <!-- Delete Users Card -->
-            <div class="col-md-4 mb-4">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title">Delete Users</h5>
-                        <p class="card-text">Remove users from the system.</p>
-                        <button class="btn btn-danger mt-auto" onclick="window.location.href='/delete_user'">
-                            Delete Users
-                        </button>
-                    </div>
-                </div>
-            </div>
             <!-- Set Standard Bank Guarantee Format Card -->
             <div class="col-md-4 mb-4">
                 <div class="card h-100 shadow-sm">
@@ -84,7 +58,7 @@
                         <p class="card-text">
                             Configure the standard format for bank guarantees.
                         </p>
-                        <button class="btn btn-secondary mt-auto" onclick="window.location.href='/set_standard_format'">
+                        <button class="btn btn-secondary mt-auto" data-bs-toggle="modal" data-bs-target="#setBankGuaranteeModal">
                             Set Format
                         </button>
                     </div>
@@ -126,48 +100,96 @@
             </div>
         </div>
     </div>
+
+    <!-- Set Bank Guarantee Format Modal -->
+    <div class="modal fade" id="setBankGuaranteeModal" tabindex="-1" aria-labelledby="setBankGuaranteeModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form id="setBankGuaranteeForm" enctype="multipart/form-data">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="setBankGuaranteeModalLabel">Set Bank Guarantee Format</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="bankGuaranteeFile" class="form-label">Select Format File</label>
+                            <input type="file" class="form-control" id="bankGuaranteeFile" name="file" required>
+                        </div>
+                        <div id="bank-guarantee-alert-container"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Upload Format</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
-        document
-            .getElementById("addUserForm")
-            .addEventListener("submit", async function (event) {
-                event.preventDefault();
+        // Handle Add User Form Submission
+        document.getElementById("addUserForm").addEventListener("submit", async function (event) {
+            event.preventDefault();
 
-                const formData = new FormData(document.getElementById("addUserForm"));
-                const values = Object.fromEntries(formData.entries());
-                console.log(values);
+            const formData = new FormData(document.getElementById("addUserForm"));
+            const alertContainer = document.getElementById("alert-container");
+            alertContainer.innerHTML = ""; // Clear previous alerts
 
-                const alertContainer = document.getElementById("alert-container");
-                alertContainer.innerHTML = ""; // Clear previous alerts
-
-                try {
-                    const response = await fetch("/add_user", {
-                        method: "POST",
-                        body: formData,                       
-                    });
-                    const result = await response.json();
-
-                    alertContainer.innerHTML = `
-                    <div class="alert alert-${response.ok ? "success" : "danger"
-                        }" role="alert">
-                        ${result.message || result.detail || "An error occurred"
-                        }
+            try {
+                const response = await fetch("/add_user", {
+                    method: "POST",
+                    body: formData,
+                });
+                const result = await response.json();
+                alertContainer.innerHTML = `
+                    <div class="alert alert-${response.ok ? "success" : "danger"}" role="alert">
+                        ${result.message || result.detail || "An error occurred."}
                     </div>
                 `;
-
-                    if (response.ok) {
-                        this.reset();
-                        const modal = bootstrap.Modal.getInstance(
-                            document.getElementById("addUserModal")
-                        );
-                        modal.hide();
-                    }
-                } catch (error) {
-                    alertContainer.innerHTML = `
+                if (response.ok) {
+                    this.reset();
+                    const modal = bootstrap.Modal.getInstance(document.getElementById("addUserModal"));
+                    modal.hide();
+                }
+            } catch (error) {
+                alertContainer.innerHTML = `
                     <div class="alert alert-danger" role="alert">
                         An error occurred: ${error.message}
                     </div>
                 `;
+            }
+        });
+
+        // Handle Set Bank Guarantee Format Form Submission
+        document.getElementById("setBankGuaranteeForm").addEventListener("submit", async function (event) {
+            event.preventDefault();
+            const formData = new FormData(document.getElementById("setBankGuaranteeForm"));
+            const alertContainer = document.getElementById("bank-guarantee-alert-container");
+            alertContainer.innerHTML = ""; // Clear previous alerts
+
+            try {
+                const response = await fetch("/set_bank_guarantee", {
+                    method: "POST",
+                    body: formData,
+                });
+                const result = await response.json();
+                alertContainer.innerHTML = `
+                    <div class="alert alert-${response.ok ? "success" : "danger"}" role="alert">
+                        ${result.message || result.detail || "An error occurred."}
+                    </div>
+                `;
+                if (response.ok) {
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
                 }
-            });
+            } catch (error) {
+                alertContainer.innerHTML = `
+                    <div class="alert alert-danger" role="alert">
+                        An error occurred: ${error.message}
+                    </div>
+                `;
+            }
+        });
     </script>
 {% endblock %}

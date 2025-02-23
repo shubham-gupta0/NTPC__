@@ -2,6 +2,7 @@ import asyncio
 import csv
 from datetime import datetime
 import os
+import shutil
 import aiofiles
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -916,3 +917,80 @@ async def my_tenders(request: Request, db: AsyncSession = Depends(get_db)):
         "view_tender.html",
         {"request": request, "tenders": tenders}
     )
+    
+@app.post("/delete_user/{user_id}", dependencies=[Depends(is_admin), Depends(is_logged_in)])
+async def delete_user(user_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+    # Check if the user exists
+    user_result = await db.execute(
+        text("SELECT * FROM users WHERE id = :user_id"),
+        {"user_id": user_id},
+    )
+    user = user_result.fetchone()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Remove the user's upload folder (deletes all user files)
+    user_folder = UPLOAD_FOLDER / str(user_id)
+    if user_folder.exists() and user_folder.is_dir():
+        shutil.rmtree(user_folder)
+
+    # Delete physical files associated with PDF bids for the user
+    pdf_result = await db.execute(
+        text("SELECT * FROM pdffiles WHERE user_id = :user_id"),
+        {"user_id": user_id},
+    )
+    pdf_files = pdf_result.fetchall()
+    for pdf in pdf_files:
+        pdf_file_path = Path(pdf.file_path)
+        if pdf_file_path.exists():
+            pdf_file_path.unlink()
+
+    # Delete associated records in the following order:
+    # 1. MetaFiles (associated with PDF bids)
+    await db.execute(
+        text("DELETE FROM metafiles WHERE pdf_id IN (SELECT id FROM pdffiles WHERE user_id = :user_id)"),
+        {"user_id": user_id},
+    )
+    # 2. Transcripts (associated with PDF bids)
+    await db.execute(
+        text("DELETE FROM transcripts WHERE pdf_id IN (SELECT id FROM pdffiles WHERE user_id = :user_id)"),
+        {"user_id": user_id},
+    )
+    # 3. CSV Errors (associated with the user)
+    await db.execute(
+        text("DELETE FROM CsvErrors WHERE user_id = :user_id"),
+        {"user_id": user_id},
+    )
+    # 4. PDF files (bids) for the user
+    await db.execute(
+        text("DELETE FROM pdffiles WHERE user_id = :user_id"),
+        {"user_id": user_id},
+    )
+    # 5. Tenders created by the user
+    await db.execute(
+        text("DELETE FROM tenders WHERE user_id = :user_id"),
+        {"user_id": user_id},
+    )
+    # Finally, delete the user record itself
+    await db.execute(
+        text("DELETE FROM users WHERE id = :user_id"),
+        {"user_id": user_id},
+    )
+    await db.commit()
+    
+    return JSONResponse(content={"message": "User and all associated records have been deleted successfully."})
+
+@app.post("/set_bank_guarantee", dependencies=[Depends(is_admin), Depends(is_logged_in)])
+async def set_bank_guarantee(file: UploadFile = File(...)):
+    assets_folder = BASE_DIR / "assets"
+    assets_folder.mkdir(parents=True, exist_ok=True)
+    # Get the file extension from the uploaded file
+    file_ext = os.path.splitext(file.filename)[1]
+    target_filename = f"standard{file_ext}"
+    target_path = assets_folder / target_filename
+
+    content = await file.read()
+    async with aiofiles.open(target_path, "wb") as f:
+        await f.write(content)
+
+    return JSONResponse(content={"message": "Bank guarantee format file updated successfully.", "file": target_filename})
