@@ -897,12 +897,41 @@ async def update_decision(payload: dict, db: AsyncSession = Depends(get_db)):
 
 @app.post("/submit_decisions/{pdf_id}", dependencies=[Depends(is_logged_in)])
 async def submit_decisions(pdf_id: int, payload: dict, db: AsyncSession = Depends(get_db)):
-    # Update the transcript status to 1, which means decisions are now locked.
+    # Update the transcript status to 1 for the given pdf_id (locking decisions)
     await db.execute(
         text("UPDATE Transcripts SET status = 1 WHERE pdf_id = :pdf_id"),
         {"pdf_id": pdf_id},
     )
     await db.commit()
+
+    # Retrieve the tender_id for the given pdf_id from PdfFiles
+    pdf_result = await db.execute(
+        text("SELECT tender_id FROM pdffiles WHERE id = :pdf_id"),
+        {"pdf_id": pdf_id},
+    )
+    pdf = pdf_result.fetchone()
+    if pdf:
+        tender_id = pdf.tender_id
+
+        # Check if any transcript associated with this tender is not locked (status != 1)
+        count_result = await db.execute(
+            text("""
+                 SELECT COUNT(*) FROM Transcripts 
+                 WHERE pdf_id IN (
+                     SELECT id FROM pdffiles WHERE tender_id = :tender_id
+                 ) AND status <> 1
+                 """),
+            {"tender_id": tender_id},
+        )
+        not_locked_count = count_result.scalar()
+        if not_locked_count == 0:
+            # If all transcripts are locked, update the tender status to 1 (closed)
+            await db.execute(
+                text("UPDATE tenders SET status = 1 WHERE id = :tender_id"),
+                {"tender_id": tender_id},
+            )
+            await db.commit()
+            
     return JSONResponse(content={"message": "Transcript locked and decisions submitted successfully."})
 
 @app.get("/my_tenders", response_class=HTMLResponse, dependencies=[Depends(is_logged_in)])
