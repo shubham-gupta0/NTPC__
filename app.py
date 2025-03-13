@@ -816,6 +816,7 @@ async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depe
     transcript_data = transcript_result.fetchone()
     if not transcript_data:
         raise HTTPException(status_code=404, detail="Transcript not found")
+
     transcript_file = transcript_data.file_path
     transcript_status = transcript_data.status
 
@@ -827,6 +828,7 @@ async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depe
     pdf = pdf_result.fetchone()
     if not pdf:
         raise HTTPException(status_code=404, detail="Bid not found")
+
     tender_id = pdf.tender_id
     user_id = pdf.user_id
     bid_name = pdf.file_name
@@ -850,23 +852,23 @@ async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depe
     )
     deletions = del_result.fetchall()
 
-    # Determine the URLs for PDF files
+    # The original PDF file route
     original_pdf_url = f"/uploaded/{os.path.basename(pdf.file_path)}"
-    
-    # Get relative path from OUTPUT_FOLDER to preserve folder structure
-    output_folder_path = Path(OUTPUT_FOLDER)
-    transcript_path = Path(transcript_file)
-    try:
-        # If the transcript path is absolute, make it relative to OUTPUT_FOLDER
-        if transcript_path.is_absolute():
-            relative_path = transcript_path.relative_to(output_folder_path)
-        else:
-            # If it's already a relative path, use it directly
-            relative_path = transcript_path
-        generated_pdf_url = f"/output/{relative_path}"
-    except ValueError:
-        # Fallback if path is not relative to OUTPUT_FOLDER
-        generated_pdf_url = f"/output/{os.path.basename(transcript_file)}"
+
+    # Simply serve the transcript path internally if it exists on disk
+    # so you don't rely on mounting /output
+    path_obj = Path(transcript_file)
+    if not path_obj.exists():
+        raise HTTPException(status_code=404, detail="Transcript PDF not found on disk")
+
+    # We'll create a short-circuit to return FileResponse if the user explicitly wants just the PDF
+    show_pdf = request.query_params.get("show_pdf")
+    if show_pdf == "true":
+        return FileResponse(path_obj, media_type="application/pdf")
+
+    # Otherwise, provide a link so the templates can iframe or link to it
+    # e.g. /transcript/<pdf_id>?show_pdf=true
+    generated_pdf_url = f"/transcript/{pdf_id}?show_pdf=true"
 
     # Render the locked template if decisions are locked (status == 1)
     if transcript_status == 1:
@@ -881,6 +883,7 @@ async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depe
                 "generated_pdf_url": generated_pdf_url,
             },
         )
+
     # Else, render the editable transcript template
     return templates.TemplateResponse(
         "transcript.html",
