@@ -536,6 +536,7 @@ async def add_bids(
             trans_path, metadata_path, ins_csv, del_csv = generate_transcript(
                 input_filename, bid_pdf_path, user.id
             )
+            print("Transcript Generated",trans_path)
             # Store a dictionary (not JSONB) in the errors field
             new_transcript = Transcript(
                 pdf_id=new_pdf.id,
@@ -718,17 +719,27 @@ async def bidder_details_page(
     # Create a list of bid details with transcript and metadata information.
     bids_list = []
     for bid in bids:
-        # Extract the filename without extension
-        input_filename = os.path.splitext(bid.file_name)[0]
-        transcript_path = OUTPUT_FOLDER / f"comparison_result_{input_filename}.pdf"
-        metadata_path = OUTPUT_FOLDER / f"metadata_{input_filename}.txt"
+        # Check if transcript exists in the database
+        transcript_result = await db.execute(
+            text("SELECT id FROM Transcripts WHERE pdf_id = :pdf_id"),
+            {"pdf_id": bid.id},
+        )
+        transcript_exists = transcript_result.scalar() is not None
+        
+        # Check if metadata exists in the database
+        meta_result = await db.execute(
+            text("SELECT id FROM MetaFiles WHERE pdf_id = :pdf_id"),
+            {"pdf_id": bid.id},
+        )
+        metadata_exists = meta_result.scalar() is not None
+        
         bids_list.append(
             {
                 "id": bid.id,
-                "name": bid.file_name,  # Using file_name as bidder name; adjust if necessary
-                "file": bid.file_name,  # Used for linking to the PDF
-                "transcript": transcript_path.exists(),
-                "metadata": metadata_path.exists(),
+                "name": bid.file_name,  # Using file_name as bidder name
+                "file": os.path.basename(bid.file_path),  # Just the filename without path
+                "transcript": transcript_exists,
+                "metadata": metadata_exists,
                 "tender_id": bid.tender_id,
             }
         )
