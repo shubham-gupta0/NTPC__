@@ -852,7 +852,21 @@ async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depe
 
     # Determine the URLs for PDF files
     original_pdf_url = f"/uploaded/{os.path.basename(pdf.file_path)}"
-    generated_pdf_url = f"/output/{os.path.basename(transcript_file)}"
+    
+    # Get relative path from OUTPUT_FOLDER to preserve folder structure
+    output_folder_path = Path(OUTPUT_FOLDER)
+    transcript_path = Path(transcript_file)
+    try:
+        # If the transcript path is absolute, make it relative to OUTPUT_FOLDER
+        if transcript_path.is_absolute():
+            relative_path = transcript_path.relative_to(output_folder_path)
+        else:
+            # If it's already a relative path, use it directly
+            relative_path = transcript_path
+        generated_pdf_url = f"/output/{relative_path}"
+    except ValueError:
+        # Fallback if path is not relative to OUTPUT_FOLDER
+        generated_pdf_url = f"/output/{os.path.basename(transcript_file)}"
 
     # Render the locked template if decisions are locked (status == 1)
     if transcript_status == 1:
