@@ -854,23 +854,21 @@ async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depe
 
     # The original PDF file route
     original_pdf_url = f"/uploaded/{os.path.basename(pdf.file_path)}"
+    # Provide a static or dynamic route for your "standard document"
+    standard_document_url = "/uploads/standard.pdf"
 
-    # Simply serve the transcript path internally if it exists on disk
-    # so you don't rely on mounting /output
+    # Check transcript file on disk
     path_obj = Path(transcript_file)
     if not path_obj.exists():
         raise HTTPException(status_code=404, detail="Transcript PDF not found on disk")
 
-    # We'll create a short-circuit to return FileResponse if the user explicitly wants just the PDF
     show_pdf = request.query_params.get("show_pdf")
     if show_pdf == "true":
         return FileResponse(path_obj, media_type="application/pdf")
 
-    # Otherwise, provide a link so the templates can iframe or link to it
-    # e.g. /transcript/<pdf_id>?show_pdf=true
     generated_pdf_url = f"/transcript/{pdf_id}?show_pdf=true"
 
-    # Render the locked template if decisions are locked (status == 1)
+    # Render locked/unlocked template
     if transcript_status == 1:
         return templates.TemplateResponse(
             "locked_transcript.html",
@@ -881,21 +879,22 @@ async def view_transcript(request: Request, pdf_id: int, db: AsyncSession = Depe
                 "deletions": deletions,
                 "original_pdf_url": original_pdf_url,
                 "generated_pdf_url": generated_pdf_url,
+                "standard_document_url": standard_document_url,
             },
         )
-
-    # Else, render the editable transcript template
-    return templates.TemplateResponse(
-        "transcript.html",
-        {
-            "request": request,
-            "bid_name": bid_name,
-            "insertions": insertions,
-            "deletions": deletions,
-            "original_pdf_url": original_pdf_url,
-            "generated_pdf_url": generated_pdf_url,
-        },
-    )
+    else:
+        return templates.TemplateResponse(
+            "transcript.html",
+            {
+                "request": request,
+                "bid_name": bid_name,
+                "insertions": insertions,
+                "deletions": deletions,
+                "original_pdf_url": original_pdf_url,
+                "generated_pdf_url": generated_pdf_url,
+                "standard_document_url": standard_document_url,
+            },
+        )
 
 @app.post("/update_decision", dependencies=[Depends(is_logged_in)])
 async def update_decision(payload: dict, db: AsyncSession = Depends(get_db)):

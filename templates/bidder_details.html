@@ -7,7 +7,7 @@
     <thead>
       <tr>
         <th>Bidder Name</th>
-        <th>Bid PDF</th>
+        <!-- <th>Bid PDF</th> -->
         <th>Transcript Verbatim Match</th>
         <th>Metadata Bank Guarantee</th>
       </tr>
@@ -16,9 +16,9 @@
       {% for bid in bids %}
       <tr>
         <td>{{ bid.name }}</td>
-        <td>
+        <!-- <td>
           <a href="/uploaded/{{ bid.file }}" target="_blank" class="btn btn-primary btn-sm">View Bid</a>
-        </td>
+        </td> -->
         <td>
           {% if bid.transcript %}
             <a href="/transcript/{{ bid.id }}" class="btn btn-success btn-sm">View Transcript</a>
