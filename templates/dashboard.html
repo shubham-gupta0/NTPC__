@@ -1,6 +1,51 @@
 {% extends "layout.html" %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container-fluid">
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav ms-auto">
+        <li class="nav-item me-2">
+          <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+            Change Password
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="btn btn-danger" onclick="location.href='/logout'">Logout</button>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="POST" action="/change_password">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="changePasswordLabel">Change Password</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="oldPassword" class="form-label">Old Password</label>
+            <input type="password" class="form-control" id="oldPassword" name="old_password" required>
+          </div>
+          <div class="mb-3">
+            <label for="newPassword" class="form-label">New Password</label>
+            <input type="password" class="form-control" id="newPassword" name="new_password" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Change Password</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="container mt-5">
   <div class="card">
     <div class="card-header">
@@ -12,16 +57,13 @@
           <button class="btn btn-primary btn-block" onclick="location.href='/EMD_BG'">EMD Bank Guarantee</button>
         </div>
         <div class="col-md-3">
-          <button class="btn btn-warning btn-block" onclick="location.href='/P_BG'">Performance Bank Guarantee
-          </button>
+          <button class="btn btn-warning btn-block" onclick="location.href='/P_BG'">Performance Bank Guarantee</button>
         </div>
         <div class="col-md-3">
-          <button class="btn btn-info btn-block" onclick="location.href='/I_P'">Integrity Pact
-          </button>
+          <button class="btn btn-info btn-block" onclick="location.href='/I_P'">Integrity Pact</button>
         </div>
         <div class="col-md-3">
-          <button class="btn btn-success btn-block" onclick="location.href='/DT_4'">Document Type 4
-          </button>
+          <button class="btn btn-success btn-block" onclick="location.href='/DT_4'">Document Type 4</button>
         </div>
       </div>
     </div>

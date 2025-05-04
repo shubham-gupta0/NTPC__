@@ -1,6 +1,7 @@
 import asyncio
 import csv
 from datetime import datetime
+from io import StringIO
 import os
 import shutil
 import aiofiles
@@ -20,7 +21,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from sqlalchemy import text
 from fastapi import FastAPI, Form, File, UploadFile, Request, Depends, HTTPException
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -774,9 +775,14 @@ async def uploaded_file(filename: str):
 #     return FileResponse(str(file_path))
 
 
-@app.get("/metadata/{pdf_id}", name="metadata", response_class=HTMLResponse,dependencies=[Depends(is_logged_in)])
-async def metadata(request: Request, pdf_id: int, db: AsyncSession = Depends(get_db)):
-    # Fetch the metadata content (assumed stored in MetaFiles.file_path column as text)
+@app.get("/metadata/{pdf_id}", name="metadata", response_class=HTMLResponse, dependencies=[Depends(is_logged_in)])
+async def metadata(
+    request: Request,
+    pdf_id: int,
+    download: bool = False,
+    db: AsyncSession = Depends(get_db),
+):
+    # Fetch the metadata file path
     meta_result = await db.execute(
         text("SELECT file_path FROM MetaFiles WHERE pdf_id = :pdf_id"),
         {"pdf_id": pdf_id},
@@ -784,22 +790,38 @@ async def metadata(request: Request, pdf_id: int, db: AsyncSession = Depends(get
     meta_files = meta_result.fetchone()
     if not meta_files:
         raise HTTPException(status_code=404, detail="Metadata not found")
+
     meta_file_path = Path(meta_files.file_path)
     if not meta_file_path.exists():
         raise HTTPException(status_code=404, detail="Metadata file not found")
-    # Parse the metadata file content
+
+    # Parse metadata file into dictionary
     meta_row = parse_metadata_file(meta_file_path)
     if not meta_row:
-        raise HTTPException(status_code=404, detail="Metadata not found")
+        raise HTTPException(status_code=404, detail="Metadata content not found")
 
-    # Also fetch the original PDF record to get a bidder name (file_name)
+    # Fetch file name from PdfFiles
     pdf_result = await db.execute(
         text("SELECT file_name FROM PdfFiles WHERE id = :pdf_id"),
         {"pdf_id": pdf_id},
     )
     pdf = pdf_result.fetchone()
-    bid_name = pdf.file_name if pdf else "Unknown Bid"
-    print(meta_row)
+    bid_name = pdf.file_name if pdf else "Unknown_Bid"
+
+    # If download=true is passed, stream the CSV
+    if download:
+        buffer = StringIO()
+        writer = csv.DictWriter(buffer, fieldnames=meta_row.keys())
+        writer.writeheader()
+        writer.writerow(meta_row)
+        buffer.seek(0)
+        return StreamingResponse(
+            buffer,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={bid_name}_metadata.csv"},
+        )
+
+    # Otherwise render the template
     return templates.TemplateResponse(
         "metadata.html",
         {"request": request, "metadata": meta_row, "bid_name": bid_name},
@@ -1050,3 +1072,43 @@ async def set_bank_guarantee(file: UploadFile = File(...)):
         await f.write(content)
 
     return JSONResponse(content={"message": "Bank guarantee format file updated successfully.", "file": target_filename})
+
+@app.post(
+    "/change_password",
+    response_class=JSONResponse,
+    dependencies=[Depends(is_logged_in)],
+)
+async def change_password(
+    request: Request,
+    old_password: str = Form(...),
+    new_password: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
+    username = request.session.get("username")
+    if not username:
+        raise HTTPException(status_code=401, detail="User not logged in.")
+
+    # Fetch user data
+    result = await db.execute(
+        text("SELECT id, password_hash FROM users WHERE username = :username"),
+        {"username": username},
+    )
+    user = result.fetchone()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    # Verify old password
+    if not pwd_context.verify(old_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Old password is incorrect.")
+
+    # Hash new password
+    new_hashed_password = pwd_context.hash(new_password)
+
+    # Update password
+    await db.execute(
+        text("UPDATE users SET password_hash = :new_password WHERE id = :user_id"),
+        {"new_password": new_hashed_password, "user_id": user.id},
+    )
+    await db.commit()
+
+    return JSONResponse(content={"message": "Password updated successfully."})
